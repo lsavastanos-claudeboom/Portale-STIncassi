@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portale Incassi — Studi Riuniti &amp; TecnAccise</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #1a3a5c; --accent: #2e86de; --accent2: #f39c12; --accent3: #27ae60;
+    --danger: #e74c3c; --light: #f4f7fb; --card: #ffffff; --border: #dde3ee;
+    --text: #2c3e50; --muted: #7f8c8d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); color: var(--text); font-size: 15px; }
+
+  header { background: linear-gradient(135deg, var(--primary) 0%, #2c5282 100%); color: #fff; padding: 30px 40px 24px; }
+  header h1 { font-size: 1.9rem; font-weight: 700; margin-bottom: 6px; }
+  header p { opacity: .82; font-size: .95rem; }
+  .badges { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .badge { display: inline-block; background: rgba(255,255,255,.2); border-radius: 20px; padding: 3px 12px; font-size: .8rem; }
+  .badge.warn { background: rgba(243,156,18,.25); border: 1px solid rgba(243,156,18,.5); }
+  .badge.ok { background: rgba(39,174,96,.3); border: 1px solid rgba(39,174,96,.6); }
+
+  nav.tabs { background: #fff; border-bottom: 1px solid var(--border); padding: 0 40px; display: flex; gap: 4px; overflow-x: auto; position: sticky; top: 0; z-index: 20; }
+  nav.tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 13px 15px; font-family: inherit; font-size: .92rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  nav.tabs button:hover { color: var(--primary); }
+  nav.tabs button[aria-selected="true"] { color: var(--primary); font-weight: 700; border-bottom-color: var(--accent); }
+
+  .container { max-width: 1240px; margin: 0 auto; padding: 26px 20px 60px; }
+  h2 { font-size: 1.3rem; font-weight: 700; color: var(--primary); margin-bottom: 18px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); display: flex; align-items: center; gap: 8px; }
+  h3 { font-size: 1rem; font-weight: 600; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .05em; }
+  .section { margin-bottom: 34px; }
+  .section[hidden] { display: none; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .kpi-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,.06); border-left: 4px solid var(--accent); }
+  .kpi-card.green { border-left-color: var(--accent3); }
+  .kpi-card.orange { border-left-color: var(--accent2); }
+  .kpi-card.red { border-left-color: var(--danger); }
+  .kpi-label { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  .kpi-value { font-size: 1.75rem; font-weight: 700; color: var(--primary); line-height: 1.1; }
+  .kpi-sub { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+  .delta { font-size: .8rem; margin-top: 5px; font-weight: 600; }
+  .delta.up { color: var(--accent3); } .delta.down { color: var(--danger); } .delta.neu { color: var(--accent2); }
+
+  .chart-card { background: var(--card); border-radius: 12px; padding: 22px; box-shadow: 0 2px 8px rgba(0,0,0,.06); margin-bottom: 20px; }
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .chart-wrap { position: relative; height: 280px; }
+  .chart-wrap-lg { position: relative; height: 340px; }
+
+  .insight { background: #eef4ff; border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 13px 18px; margin-top: 16px; font-size: .9rem; line-height: 1.6; }
+  .insight strong { color: var(--primary); }
+  .warn-box { background: #fff8f0; border: 1px solid #f5d9b0; border-radius: 10px; padding: 13px 18px; margin-top: 14px; font-size: .88rem; line-height: 1.6; }
+  .warn-box strong { color: #b9770e; }
+  .evolution-box { background: #f0fff4; border: 1px solid #b7ebc8; border-radius: 10px; padding: 13px 18px; margin-top: 14px; font-size: .88rem; line-height: 1.6; }
+  .evolution-box strong { color: #1a6b35; }
+  .err-box { background: #fdecea; border: 1px solid #f5c6c2; border-radius: 10px; padding: 13px 18px; margin-top: 14px; font-size: .88rem; color: #a03027; }
+
+  .tab-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th { background: var(--primary); color: #fff; padding: 10px 13px; text-align: left; font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; position: sticky; top: 0; }
+  th.num, td.num { text-align: right; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { background: #24507f; }
+  td { padding: 9px 13px; border-bottom: 1px solid var(--border); }
+  tbody tr:nth-child(even) { background: #fafcfe; }
+  tbody tr:hover { background: #eef4ff; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .cliente-cell { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .tag { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: .75rem; font-weight: 600; white-space: nowrap; }
+  .tag-red { background: #fdecea; color: var(--danger); }
+  .tag-orange { background: #fef9e7; color: #b9770e; }
+  .tag-green { background: #eafaf1; color: #1a6b35; }
+  .tag-blue { background: #eaf2fd; color: #1b5e9e; }
+  .tag-grey { background: #eef1f5; color: var(--muted); }
+
+  .bar-wrap { background: #e8edf4; border-radius: 6px; height: 10px; overflow: hidden; min-width: 70px; }
+  .bar-fill { height: 100%; border-radius: 6px; }
+
+  /* Striscia del ritmo di pagamento: ogni tacca è una fattura, collocata
+     sui giorni impiegati per incassarla. */
+  .ritmo { display: block; }
+
+  .toolbar { background: #fff; border-bottom: 1px solid var(--border); padding: 12px 40px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .filtro { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .filtro button { background: #fff; border: 0; border-right: 1px solid var(--border); padding: 6px 12px; font-family: inherit; font-size: .84rem; color: var(--text); cursor: pointer; }
+  .filtro button:last-child { border-right: 0; }
+  .filtro button[aria-pressed="true"] { background: var(--primary); color: #fff; font-weight: 600; }
+  .filtro-label { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-right: 2px; }
+  .spacer { flex: 1; }
+
+  .btn { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 15px; font-family: inherit; font-size: .87rem; font-weight: 600; cursor: pointer; }
+  .btn:hover { background: #2470bd; }
+  .btn.ghost { background: #fff; color: var(--primary); border: 1px solid var(--border); }
+  .btn.ghost:hover { background: var(--light); }
+  .btn.danger { background: #fff; color: var(--danger); border: 1px solid #f0c4c1; }
+  .btn.danger:hover { background: #fdecea; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .drop { border: 2px dashed var(--border); border-radius: 12px; background: #fff; padding: 40px 24px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+  .drop:hover, .drop.over { border-color: var(--accent); background: #f6faff; }
+  .drop .big { font-size: 1.15rem; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+  .drop .small { font-size: .88rem; color: var(--muted); }
+  .drop .mapping { margin-top: 14px; font-size: .82rem; color: var(--muted); }
+
+  .vuoto { text-align: center; padding: 40px 20px; color: var(--muted); }
+  input[type=search], select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: .87rem; background: #fff; color: var(--text); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  footer { text-align: center; padding: 24px 20px 40px; font-size: .8rem; color: var(--muted); }
+
+  @media (max-width: 900px) {
+    header, nav.tabs, .toolbar { padding-left: 16px; padding-right: 16px; }
+    .chart-row { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Portale Incassi</h1>
+  <p>Analisi delle proforma, dei tempi di incasso e del comportamento dei clienti — Studi Riuniti e TecnAccise</p>
+  <div class="badges" id="badges"></div>
+</header>
+
+<nav class="tabs" id="tabs" role="tablist"></nav>
+
+<div class="toolbar" id="toolbar" hidden></div>
+
+<div class="container">
+  <div id="benvenuto">
+    <div class="section">
+      <h2>📂 Carica gli export del gestionale</h2>
+      <div class="drop" id="drop" role="button" tabindex="0">
+        <div class="big">Trascina qui i file, oppure fai clic per sceglierli</div>
+        <div class="small">Formati accettati: .xlsx, .xls e .csv — puoi caricarne più di uno in una volta</div>
+        <div class="mapping">
+          Il sezionale viene letto dal numero documento:
+          <span class="tag tag-blue">C</span> <span class="tag tag-blue">P</span> <span class="tag tag-blue">D</span> → Studi Riuniti
+          &nbsp;·&nbsp; <span class="tag tag-green">T</span> → TecnAccise
+        </div>
+      </div>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple hidden>
+      <div id="esito"></div>
+      <div class="insight">
+        <strong>Come funziona.</strong> I file restano sul tuo computer: l'elaborazione avviene interamente nel
+        browser e nulla viene inviato in rete. L'archivio viene conservato in locale, così alla riapertura
+        ritrovi i dati senza ricaricarli. Ricaricando lo stesso periodo le righe non si duplicano: i documenti
+        già presenti vengono aggiornati con le nuove date di incasso.
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="sez-panoramica" hidden></div>
+  <div class="section" id="sez-mensile" hidden></div>
+  <div class="section" id="sez-tempi" hidden></div>
+  <div class="section" id="sez-clienti" hidden></div>
+  <div class="section" id="sez-attivita" hidden></div>
+  <div class="section" id="sez-confronto" hidden></div>
+  <div class="section" id="sez-archivio" hidden></div>
+</div>
+
+<footer>
+  Elaborazione locale · nessun dato lascia il browser · <span id="footer-info"></span>
+</footer>
+
+<script>
+/* =====================================================================
+   1. UTILITÀ
+   ===================================================================== */
+const $ = (s) => document.querySelector(s);
+const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h !== undefined) e.innerHTML = h; return e; };
+
+const fEuro = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const fEuro2 = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 });
+const fNum = new Intl.NumberFormat('it-IT');
+const fDec = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+const euro = (v) => (v == null || isNaN(v)) ? '—' : fEuro.format(v);
+const euro2 = (v) => (v == null || isNaN(v)) ? '—' : fEuro2.format(v);
+const num = (v) => (v == null || isNaN(v)) ? '—' : fNum.format(v);
+const dec = (v) => (v == null || isNaN(v)) ? '—' : fDec.format(v);
+const pct = (v) => (v == null || isNaN(v)) ? '—' : fDec.format(v) + '%';
+const gg = (v) => (v == null || isNaN(v)) ? '—' : fDec.format(v) + ' gg';
+const dataIt = (d) => { if (!d) return '—'; const [a, m, g] = String(d).slice(0, 10).split('-'); return `${g}/${m}/${a}`; };
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const somma = (a, f = (x) => x) => a.reduce((s, x) => s + (Number(f(x)) || 0), 0);
+const mediana = (v) => { if (!v.length) return null; const s = [...v].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+function ponderata(righe, val, peso) {
+  let n = 0, d = 0;
+  righe.forEach(r => { const p = Math.max(Number(peso(r)) || 0, .01); n += (Number(val(r)) || 0) * p; d += p; });
+  return d ? n / d : null;
+}
+const variazione = (a, b) => (b == null || b === 0) ? null : ((a - b) / Math.abs(b)) * 100;
+const deltaHtml = (v, inverso) => {
+  if (v == null) return '';
+  const buono = inverso ? v < 0 : v > 0;
+  return `<div class="delta ${buono ? 'up' : 'down'}">${v > 0 ? '▲ +' : '▼ '}${dec(v)}%</div>`;
+};
+
+const MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+const PALETTE = ['#2e86de','#f39c12','#27ae60','#e74c3c','#8e44ad','#16a085','#e67e22','#2980b9','#c0392b','#1abc9c','#d35400','#2c3e50','#7f8c8d','#f1c40f','#95a5a6'];
+const COLORE_ANNO = ['#2e86de', '#f39c12', '#27ae60', '#8e44ad', '#e74c3c'];
+
+/* =====================================================================
+   2. LETTURA DEI FILE
+   ===================================================================== */
+const SEZIONALI = { C: 'STUDIRIUNITI', P: 'STUDIRIUNITI', D: 'STUDIRIUNITI', T: 'TECNACCISE' };
+const ETICHETTA = { STUDIRIUNITI: 'Studi Riuniti', TECNACCISE: 'TecnAccise' };
+
+const COLONNE_FISSE = ['CATEGORIA','N. DOC','DATA DOC.','DATA INCASSO','CLIENTE','IMPONIBILE','CASSA 4%',
+  'IVA 22%','IVA 22% PER CASSA','SPESE ART.15','QUANTITÀ','TOTALE','PROVVIGIONI INTERMEDIARIO',
+  'INTERMEDIARIO','DATA EXPORT XML'];
+
+const pulisci = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
+const chiave = (s) => pulisci(s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+/* Numeri in formato italiano (1.234,56). Il segno meno va conservato:
+   sono storni e sconti. Un trattino isolato è invece campo vuoto. */
+function numeroIt(v) {
+  if (v == null) return 0;
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  let s = pulisci(v);
+  if (s === '' || s === '-') return 0;
+  s = s.replace(/\./g, '').replace(',', '.').replace(/[^0-9.\-]/g, '');
+  const n = parseFloat(s);
+  return isFinite(n) ? n : 0;
+}
+
+function dataIso(v) {
+  if (v == null) return null;
+  if (v instanceof Date && !isNaN(v)) {
+    return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`;
+  }
+  if (typeof v === 'number' && v > 20000 && v < 60000) {
+    const d = XLSX.SSF.parse_date_code(v);
+    if (d) return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+  }
+  const s = pulisci(v);
+  if (s === '' || s === '-') return null;
+  let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (m) { let [, g, mm, a] = m; if (a.length === 2) a = (+a > 60 ? '19' : '20') + a; return `${a}-${mm.padStart(2,'0')}-${g.padStart(2,'0')}`; }
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[0] : null;
+}
+
+/* Il sezionale è il suffisso del numero documento: "860/C" → C. */
+const sezionaleDa = (n) => { const m = pulisci(n).toUpperCase().match(/\/\s*([A-Z])\s*$/); return m ? m[1] : null; };
+
+const clienteKey = (nome) => pulisci(nome).toUpperCase()
+  .replace(/\bS\.?\s?R\.?\s?L\.?S?\b/g, 'SRL').replace(/\bS\.?\s?P\.?\s?A\.?\b/g, 'SPA')
+  .replace(/\bS\.?\s?A\.?\s?S\.?\b/g, 'SAS').replace(/\bS\.?\s?N\.?\s?C\.?\b/g, 'SNC')
+  .replace(/[^A-Z0-9]+/g, ' ').trim();
+
+async function leggiFile(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array', cellDates: true, raw: false });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws) throw new Error(`${file.name}: nessun foglio leggibile.`);
+  const mat = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false, raw: false });
+
+  const iHead = mat.findIndex(r => { const c = r.map(chiave); return c.includes('NDOC') && c.includes('IMPONIBILE'); });
+  if (iHead === -1) throw new Error(`${file.name}: intestazione non riconosciuta. Servono almeno le colonne "N. DOC" e "IMPONIBILE".`);
+
+  const head = mat[iHead].map(pulisci);
+  const pos = {};
+  COLONNE_FISSE.forEach(c => { const i = head.findIndex(h => chiave(h) === chiave(c)); if (i !== -1) pos[c] = i; });
+  const iMax = Math.max(...Object.values(pos), -1);
+  const colAtt = head.map((h, i) => ({ h, i })).filter(({ h, i }) => i > iMax && h !== '');
+
+  const righe = [], scarti = [], studi = new Set();
+  let da = null, a = null;
+
+  for (let r = iHead + 1; r < mat.length; r++) {
+    const riga = mat[r];
+    const v = (c) => pos[c] !== undefined ? riga[pos[c]] : '';
+    const nDoc = pulisci(v('N. DOC')), dDoc = dataIso(v('DATA DOC.')), cliente = pulisci(v('CLIENTE'));
+    if (!nDoc && !cliente) continue;
+    if (!nDoc || !dDoc) { scarti.push({ riga: r + 1, motivo: 'numero documento o data mancante' }); continue; }
+
+    let sez = sezionaleDa(nDoc);
+    if (!sez) sez = chiave(v('CATEGORIA')).startsWith('TECNACCISE') ? 'T' : null;
+    if (!sez || !SEZIONALI[sez]) { scarti.push({ riga: r + 1, motivo: `sezionale non riconosciuto in "${nDoc}"` }); continue; }
+
+    const attivita = {};
+    colAtt.forEach(({ h, i }) => { const n = numeroIt(riga[i]); if (n !== 0) attivita[h] = Math.round(n * 100) / 100; });
+
+    const imponibile = numeroIt(v('IMPONIBILE'));
+    righe.push({
+      studio: SEZIONALI[sez], sezionale: sez, n_doc: nDoc, data_doc: dDoc,
+      data_incasso: dataIso(v('DATA INCASSO')), cliente, cliente_key: clienteKey(cliente),
+      imponibile, cassa: numeroIt(v('CASSA 4%')),
+      iva: numeroIt(v('IVA 22%')) + numeroIt(v('IVA 22% PER CASSA')),
+      totale: numeroIt(v('TOTALE')) || imponibile,
+      intermediario: pulisci(v('INTERMEDIARIO')) || null, attivita
+    });
+    studi.add(SEZIONALI[sez]);
+    if (!da || dDoc < da) da = dDoc;
+    if (!a || dDoc > a) a = dDoc;
+  }
+
+  if (!righe.length) throw new Error(`${file.name}: nessuna riga valida da importare.`);
+  return { nomeFile: file.name, righe, scarti, studi: [...studi], periodo: { da, a }, caricatoIl: new Date().toISOString() };
+}
+
+/* =====================================================================
+   3. ARCHIVIO LOCALE
+   ===================================================================== */
+const CHIAVE_ARCHIVIO = 'portale-incassi-v1';
+const ID = (r) => `${r.studio}|${r.sezionale}|${r.n_doc}|${r.data_doc}`;
+
+const store = {
+  righe: [], file: [], persistente: true,
+  carica() {
+    try {
+      const raw = localStorage.getItem(CHIAVE_ARCHIVIO);
+      if (raw) { const d = JSON.parse(raw); this.righe = d.righe || []; this.file = d.file || []; }
+    } catch (e) { this.persistente = false; }
+  },
+  salva() {
+    try { localStorage.setItem(CHIAVE_ARCHIVIO, JSON.stringify({ righe: this.righe, file: this.file })); }
+    catch (e) { this.persistente = false; }
+  },
+  /* Upsert su (studio, sezionale, n. doc, data): ricaricare lo stesso
+     periodo aggiorna le date di incasso senza creare doppioni. */
+  aggiungi(analisi) {
+    const idx = new Map(this.righe.map((r, i) => [ID(r), i]));
+    let nuove = 0, aggiornate = 0;
+    analisi.righe.forEach(r => {
+      const i = idx.get(ID(r));
+      if (i === undefined) { idx.set(ID(r), this.righe.push(r) - 1); nuove++; }
+      else { this.righe[i] = r; aggiornate++; }
+    });
+    this.file = this.file.filter(f => f.nomeFile !== analisi.nomeFile);
+    this.file.unshift({ nomeFile: analisi.nomeFile, righe: analisi.righe.length, studi: analisi.studi,
+                        periodo: analisi.periodo, caricatoIl: analisi.caricatoIl, scarti: analisi.scarti.length });
+    this.salva();
+    return { nuove, aggiornate };
+  },
+  svuota() { this.righe = []; this.file = []; try { localStorage.removeItem(CHIAVE_ARCHIVIO); } catch (e) {} }
+};
+
+/* =====================================================================
+   4. CALCOLI
+   ===================================================================== */
+const giorniTra = (a, b) => Math.round((new Date(b) - new Date(a)) / 864e5);
+
+/* Data di riferimento: la più recente presente in archivio. Usare "oggi"
+   su un archivio non aggiornato gonfierebbe l'anzianità dello scaduto. */
+function riferimento(righe) {
+  let max = '0000-01-01';
+  righe.forEach(r => { if (r.data_doc > max) max = r.data_doc; if (r.data_incasso && r.data_incasso > max) max = r.data_incasso; });
+  return max === '0000-01-01' ? new Date().toISOString().slice(0, 10) : max;
+}
+
+function prepara(righe, oggi) {
+  return righe.map(r => {
+    const inc = !!r.data_incasso;
+    return { ...r, incassata: inc,
+      /* Gli incassi anticipati (tipici del RID) valgono zero giorni, non
+         giorni negativi: altrimenti abbasserebbero il dato in modo fittizio. */
+      gg: inc ? Math.max(giorniTra(r.data_doc, r.data_incasso), 0) : null,
+      ggAperti: inc ? null : Math.max(giorniTra(r.data_doc, oggi), 0),
+      eta: Math.max(giorniTra(r.data_doc, oggi), 0),
+      anno: +r.data_doc.slice(0, 4), mese: +r.data_doc.slice(5, 7),
+      doy: Math.floor((new Date(r.data_doc) - new Date(+r.data_doc.slice(0, 4), 0, 0)) / 864e5),
+      annoInc: inc ? +r.data_incasso.slice(0, 4) : null, meseInc: inc ? +r.data_incasso.slice(5, 7) : null };
+  });
+}
+
+function indicatori(righe) {
+  const inc = righe.filter(r => r.incassata), ap = righe.filter(r => !r.incassata);
+  const imponibile = somma(righe, r => r.imponibile), incassato = somma(inc, r => r.imponibile);
+  return { documenti: righe.length, clienti: new Set(righe.map(r => r.cliente_key)).size,
+    imponibile, totale: somma(righe, r => r.totale), incassato,
+    aperto: somma(ap, r => r.imponibile), apertoLordo: somma(ap, r => r.totale), documentiAperti: ap.length,
+    quotaIncassata: imponibile ? incassato / imponibile * 100 : null,
+    dso: ponderata(inc, r => r.gg, r => r.imponibile), dsoMediano: mediana(inc.map(r => r.gg)),
+    ticket: righe.length ? imponibile / righe.length : 0, ticketMediano: mediana(righe.map(r => r.imponibile)) };
+}
+
+const FAMIGLIE = [
+  [/RID MENSILE|FATTURAZIONE STUDIRIUNITI/, 'Contabilità ricorrente'],
+  [/LIQ|LI\.?PE|ACCONTO IVA|MOD\.? IVA|INTRASTAT|INTENTO/, 'Adempimenti IVA periodici'],
+  [/REDDITI|730|IRAP|CERTIFICAZIONI UNICHE|770|SISTEMA TS|DETRAZIONI CONDOMINIO/, 'Dichiarativi annuali'],
+  [/BILANCIO|VERBALE|CESSIONE QUOTE|SCHEMA ATTO|VIDIMAZIONE/, 'Bilancio e adempimenti societari'],
+  [/CCIAA|VISURA|ISCRIZIONE|COSTITUZIONE|APERTURA P\.?IVA|MARCHIO|ATECO|DURC|PEC AMMINISTRATORI/, 'Pratiche camerali e societarie'],
+  [/INPS|INAIL/, 'Adempimenti previdenziali'],
+  [/IMU|BOLLI/, 'Tributi locali e bolli'],
+  [/SGRAVIO|CIVIS|ROTTAMAZIONE|RATEIZZAZIONE|INTEGRATIVA|SEGNALAZIONE/, 'Contenzioso e riscossione'],
+  [/F24|PORTALE FATTURAZIONE|ADDEBIT/, 'Servizi telematici'],
+  [/ACCISE|ADM|GSE|GAUD|ENERG|FOTOVOLTAIC|UTF|DOGAN/, 'Accise ed energia']
+];
+function famiglia(voce) {
+  const v = String(voce).toUpperCase();
+  for (const [re, nome] of FAMIGLIE) if (re.test(v)) return nome;
+  return 'Attività spot e altre pratiche';
+}
+
+/* Si usano i soli valori positivi: le voci negative sono storni e sconti,
+   che falserebbero la composizione del fatturato. */
+function ripartizione(righe, perFamiglia) {
+  const acc = new Map();
+  righe.forEach(r => Object.entries(r.attivita || {}).forEach(([voce, imp]) => {
+    if (imp <= 0) return;
+    const k = perFamiglia ? famiglia(voce) : voce;
+    if (!acc.has(k)) acc.set(k, { nome: k, importo: 0, documenti: new Set(), anni: {} });
+    const e = acc.get(k);
+    e.importo += imp; e.documenti.add(ID(r)); e.anni[r.anno] = (e.anni[r.anno] || 0) + imp;
+  }));
+  const tot = somma([...acc.values()], x => x.importo) || 1;
+  return [...acc.values()].map(x => ({ ...x, documenti: x.documenti.size, quota: x.importo / tot * 100 }))
+    .sort((a, b) => b.importo - a.importo);
+}
+
+function tempiPerFamiglia(righe) {
+  const acc = new Map();
+  righe.forEach(r => {
+    const voci = Object.entries(r.attivita || {}).filter(([, v]) => v > 0);
+    if (!voci.length) return;
+    const k = famiglia(voci.sort((a, b) => b[1] - a[1])[0][0]);
+    if (!acc.has(k)) acc.set(k, []);
+    acc.get(k).push(r);
+  });
+  return [...acc.entries()].map(([nome, rr]) => {
+    const inc = rr.filter(r => r.incassata), imp = somma(rr, r => r.imponibile);
+    return { nome, documenti: rr.length, imponibile: imp,
+      dso: ponderata(inc, r => r.gg, r => r.imponibile), mediana: mediana(inc.map(r => r.gg)),
+      quotaAperta: imp ? somma(rr.filter(r => !r.incassata), r => r.imponibile) / imp * 100 : 0 };
+  }).filter(x => x.imponibile > 0).sort((a, b) => b.imponibile - a.imponibile);
+}
+
+const FASCE_GG = [[0,'Contestuale'],[7,'1-7 gg'],[15,'8-15 gg'],[30,'16-30 gg'],[60,'31-60 gg'],[90,'61-90 gg'],[Infinity,'Oltre 90 gg']];
+function fasce(righe) {
+  const inc = righe.filter(r => r.incassata), tot = somma(inc, r => r.imponibile) || 1;
+  return FASCE_GG.map(([max, nome], i) => {
+    const min = i === 0 ? -1 : FASCE_GG[i - 1][0];
+    const sel = inc.filter(r => r.gg > min && r.gg <= max);
+    return { fascia: nome, documenti: sel.length, importo: somma(sel, r => r.imponibile), quota: somma(sel, r => r.imponibile) / tot * 100 };
+  });
+}
+
+const FASCE_ETA = [[30,'0-30 gg'],[60,'31-60 gg'],[90,'61-90 gg'],[180,'91-180 gg'],[365,'181-365 gg'],[Infinity,'Oltre 365 gg']];
+function anzianita(righe) {
+  const ap = righe.filter(r => !r.incassata);
+  return FASCE_ETA.map(([max, nome], i) => {
+    const min = i === 0 ? -1 : FASCE_ETA[i - 1][0];
+    const sel = ap.filter(r => r.ggAperti > min && r.ggAperti <= max);
+    return { fascia: nome, documenti: sel.length, importo: somma(sel, r => r.imponibile), lordo: somma(sel, r => r.totale) };
+  });
+}
+
+const TAPPE = [0, 7, 15, 30, 45, 60, 90, 120, 180];
+function orizzonteUtile(righe) {
+  const minimo = Math.max(20, Math.round(righe.length * .2));
+  const ok = TAPPE.filter(g => righe.filter(r => r.eta >= g).length >= minimo);
+  return ok.length ? ok[ok.length - 1] : null;
+}
+/* La curva usa una sola coorte per tutti i punti: cambiando denominatore a
+   ogni scadenza potrebbe perfino scendere. Confrontando più anni si passa
+   lo stesso orizzonte a tutti, altrimenti l'anno in corso verrebbe
+   giudicato su una coorte più ristretta e più giovane. */
+function curva(righe, orizzonte) {
+  if (!righe.length) return [];
+  const o = orizzonte ?? orizzonteUtile(righe);
+  if (o == null) return [];
+  const coorte = righe.filter(r => r.eta >= o), base = somma(coorte, r => r.imponibile);
+  if (!base) return [];
+  return TAPPE.filter(g => g <= o).map(g => ({ giorni: g,
+    quota: somma(coorte.filter(r => r.incassata && r.gg <= g), r => r.imponibile) / base * 100,
+    documenti: coorte.length }));
+}
+
+function effettoRid(righe) {
+  const haRid = r => Object.keys(r.attivita || {}).some(v => /RID MENSILE/i.test(v));
+  const g = sel => { const inc = sel.filter(r => r.incassata), imp = somma(sel, r => r.imponibile);
+    return { documenti: sel.length, imponibile: imp, dso: ponderata(inc, r => r.gg, r => r.imponibile),
+             quotaAperta: imp ? somma(sel.filter(r => !r.incassata), r => r.imponibile) / imp * 100 : 0 }; };
+  return { con: g(righe.filter(haRid)), senza: g(righe.filter(r => !haRid(r))) };
+}
+
+/* Punteggio di affidabilità 0-100. Tre componenti, perché un cliente può
+   essere lento ma saldare sempre, oppure puntuale in media e avere una
+   posizione ferma da un anno. */
+function punteggio(dso, quotaAperta, apertoMax) {
+  const vel = dso == null ? 70 : Math.max(0, 100 - Math.min(dso, 120) * (100 / 120));
+  const esp = Math.max(0, 100 - Math.min(quotaAperta, 60) * (100 / 60));
+  const anz = apertoMax == null ? 100 : Math.max(0, 100 - Math.min(apertoMax, 365) * (100 / 365));
+  return Math.round(vel * .45 + esp * .35 + anz * .20);
+}
+const GIUDIZI = [[85, 'Eccellente', 'green'], [70, 'Affidabile', 'blue'], [50, 'Da monitorare', 'orange'], [0, 'Critico', 'red']];
+const giudizio = p => GIUDIZI.find(g => p >= g[0]);
+
+function schede(righe) {
+  const acc = new Map();
+  righe.forEach(r => {
+    if (!acc.has(r.cliente_key)) acc.set(r.cliente_key, { key: r.cliente_key, nome: r.cliente, righe: [] });
+    const e = acc.get(r.cliente_key);
+    e.righe.push(r);
+    if (r.cliente.length > e.nome.length) e.nome = r.cliente;
+  });
+  return [...acc.values()].map(({ key, nome, righe: rr }) => {
+    const inc = rr.filter(r => r.incassata), ap = rr.filter(r => !r.incassata);
+    const imponibile = somma(rr, r => r.imponibile), aperto = somma(ap, r => r.imponibile);
+    const dso = ponderata(inc, r => r.gg, r => r.imponibile), med = mediana(inc.map(r => r.gg));
+    const quotaAperta = imponibile ? aperto / imponibile * 100 : 0;
+    const apertoMax = ap.length ? Math.max(...ap.map(r => r.ggAperti)) : null;
+    const p = punteggio(dso, quotaAperta, apertoMax);
+    /* La divergenza fra media ponderata e mediana distingue il ritardatario
+       cronico dall'incidente isolato su una pratica di importo alto. */
+    const cronico = dso != null && med != null && med >= 30;
+    const episodico = dso != null && med != null && dso - med >= 25 && med < 30;
+    return { key, nome, documenti: rr.length, imponibile, incassato: somma(inc, r => r.imponibile),
+      aperto, apertoLordo: somma(ap, r => r.totale), documentiAperti: ap.length, quotaAperta,
+      dso, mediana: med, ggMax: inc.length ? Math.max(...inc.map(r => r.gg)) : null, apertoMax,
+      punteggio: p, giudizio: giudizio(p), profilo: cronico ? 'cronico' : episodico ? 'episodico' : 'regolare',
+      ultimo: rr.reduce((a, r) => r.data_doc > a ? r.data_doc : a, rr[0].data_doc),
+      tempi: inc.map(r => r.gg).sort((a, b) => a - b), righe: rr };
+  }).sort((a, b) => b.imponibile - a.imponibile);
+}
+
+function movimenti(righe, a1, a2) {
+  const s1 = new Set(righe.filter(r => r.anno === a1).map(r => r.cliente_key));
+  const s2 = new Set(righe.filter(r => r.anno === a2).map(r => r.cliente_key));
+  const mant = [...s2].filter(k => s1.has(k)), nuovi = [...s2].filter(k => !s1.has(k)), persi = [...s1].filter(k => !s2.has(k));
+  const imp = (keys, a) => somma(righe.filter(r => r.anno === a && keys.includes(r.cliente_key)), r => r.imponibile);
+  return { mantenuti: mant.length, nuovi: nuovi.length, persi: persi.length,
+    ritenzione: s1.size ? mant.length / s1.size * 100 : null,
+    impMantenuti: imp(mant, a2), impNuovi: imp(nuovi, a2), impPersi: imp(persi, a1) };
+}
+
+/* =====================================================================
+   5. STATO E FILTRI
+   ===================================================================== */
+const stato = { studio: 'TUTTI', sezionale: 'TUTTI', anno: 'TUTTI', tab: 'panoramica',
+                ordineClienti: 'imponibile', discClienti: true, filtroClienti: 'tutti', cerca: '' };
+let TUTTE = [], VISTE = [], REF = null;
+
+function ricalcola() {
+  REF = riferimento(store.righe);
+  TUTTE = prepara(store.righe, REF);
+  VISTE = TUTTE.filter(r =>
+    (stato.studio === 'TUTTI' || r.studio === stato.studio) &&
+    (stato.sezionale === 'TUTTI' || r.sezionale === stato.sezionale) &&
+    (stato.anno === 'TUTTI' || r.anno === +stato.anno));
+}
+
+const anniDi = (righe) => [...new Set(righe.map(r => r.anno))].sort();
+
+/* =====================================================================
+   6. GRAFICI
+   ===================================================================== */
+const grafici = {};
+function disegna(id, cfg) {
+  const c = document.getElementById(id);
+  if (!c) return;
+  if (grafici[id]) grafici[id].destroy();
+  Chart.defaults.font.family = "'Segoe UI', Arial, sans-serif";
+  grafici[id] = new Chart(c, cfg);
+}
+const assiEuro = { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eef1f6' } }, x: { grid: { display: false } } };
+const assiPct = { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#eef1f6' } }, x: { grid: { display: false } } };
+const legenda = { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, pointStyle: 'circle', padding: 14 } } };
+
+/* =====================================================================
+   7. COMPONENTI HTML
+   ===================================================================== */
+const kpi = (label, valore, sub, tono, delta) =>
+  `<div class="kpi-card ${tono || ''}"><div class="kpi-label">${esc(label)}</div>
+   <div class="kpi-value">${valore}</div>${sub ? `<div class="kpi-sub">${sub}</div>` : ''}${delta || ''}</div>`;
+
+const barra = (quota, colore) =>
+  `<div class="bar-wrap"><div class="bar-fill" style="width:${Math.max(2, Math.min(100, quota))}%;background:${colore}"></div></div>`;
+
+/* Ogni tacca è una fattura, collocata secondo i giorni impiegati per
+   incassarla; le tratteggiate rosse sono le posizioni ancora aperte. */
+function ritmo(tempi, aperti, L = 120, H = 24, MAX = 120) {
+  const x = g => 3 + Math.min(g, MAX) / MAX * (L - 6);
+  const col = g => g <= 7 ? '#27ae60' : g <= 30 ? '#2e86de' : g <= 60 ? '#f39c12' : '#e74c3c';
+  let s = `<svg class="ritmo" width="${L}" height="${H}" viewBox="0 0 ${L} ${H}" role="img" aria-label="${tempi.length} fatture saldate, ${aperti.length} aperte">`;
+  s += `<rect x="0" y="${H/2-5}" width="${L}" height="10" rx="5" fill="#e8edf4"/>`;
+  [15, 30, 60].forEach(t => s += `<line x1="${x(t)}" y1="${H/2-6}" x2="${x(t)}" y2="${H/2+6}" stroke="#c3cddb" stroke-width="1" stroke-dasharray="2 2"/>`);
+  tempi.forEach(g => s += `<line x1="${x(g)}" y1="${H/2-4.5}" x2="${x(g)}" y2="${H/2+4.5}" stroke="${col(g)}" stroke-width="2.2" stroke-linecap="round" opacity=".85"/>`);
+  aperti.forEach(g => s += `<line x1="${x(g)}" y1="${H/2-7}" x2="${x(g)}" y2="${H/2+7}" stroke="#e74c3c" stroke-width="2.2" stroke-dasharray="2 1.5"/>`);
+  return s + '</svg>';
+}
+
+function tabella(colonne, righe, opts = {}) {
+  let h = '<div class="tab-scroll"><table><thead><tr>';
+  colonne.forEach(c => h += `<th class="${c.num ? 'num' : ''}">${esc(c.t)}</th>`);
+  h += '</tr></thead><tbody>';
+  righe.forEach(r => {
+    h += '<tr>';
+    colonne.forEach(c => h += `<td class="${c.num ? 'num' : ''}">${c.v(r)}</td>`);
+    h += '</tr>';
+  });
+  return h + '</tbody></table></div>' + (opts.nota ? `<div class="kpi-sub" style="margin-top:10px">${opts.nota}</div>` : '');
+}
+
+/* =====================================================================
+   8. SEZIONI
+   ===================================================================== */
+function rendiPanoramica() {
+  const k = indicatori(VISTE), rid = effettoRid(VISTE), anz = anzianita(VISTE), cl = schede(VISTE);
+  const anni = anniDi(VISTE);
+  const doy = Math.floor((new Date(REF) - new Date(+REF.slice(0, 4), 0, 0)) / 864e5);
+  const perAnno = anni.map(a => ({ anno: a, ...indicatori(VISTE.filter(r => r.anno === a && r.doy <= doy)) }));
+  const u = perAnno[perAnno.length - 1], p = perAnno[perAnno.length - 2];
+
+  const oltre90 = somma(anz.slice(3), f => f.importo), doc90 = somma(anz.slice(3), f => f.documenti);
+  const critici = cl.filter(c => c.giudizio[1] === 'Critico');
+  const guadagno = (rid.senza.dso != null && rid.con.dso != null) ? rid.senza.dso - rid.con.dso : null;
+  const topAperto = cl.filter(c => c.aperto > 0).sort((a, b) => b.aperto - a.aperto)[0];
+
+  let h = '<h2>📈 Riepilogo generale</h2><div class="kpi-grid">';
+  h += kpi('Imponibile emesso', euro(k.imponibile), `${num(k.documenti)} proforma · ${num(k.clienti)} clienti`,
+           '', p ? deltaHtml(variazione(u.imponibile, p.imponibile)) : '');
+  h += kpi('Incassato', pct(k.quotaIncassata), `${euro(k.incassato)} su ${euro(k.imponibile)}`, 'green');
+  h += kpi('Tempo medio di incasso', gg(k.dso), `mediana ${dec(k.dsoMediano)} gg`,
+           k.dso > 45 ? 'red' : k.dso > 25 ? 'orange' : 'green',
+           p ? deltaHtml(variazione(u.dso, p.dso), true) : '');
+  h += kpi('Credito aperto', euro(k.aperto), `${euro(k.apertoLordo)} lordi · ${num(k.documentiAperti)} doc.`,
+           oltre90 > k.aperto * .35 ? 'red' : 'orange');
+  h += kpi('Scaduto oltre 90 giorni', euro(oltre90), `${num(doc90)} documenti`, oltre90 > 0 ? 'red' : 'green');
+  h += kpi('Ticket medio', euro(k.ticket), `mediana ${euro(k.ticketMediano)}`);
+  h += kpi('Con mandato RID', gg(rid.con.dso), `${euro(rid.con.imponibile)} · aperto ${pct(rid.con.quotaAperta)}`, 'green');
+  h += kpi('Senza mandato RID', gg(rid.senza.dso), `${euro(rid.senza.imponibile)} · aperto ${pct(rid.senza.quotaAperta)}`, 'red');
+  h += '</div>';
+
+  if (p && u) {
+    const cresce = variazione(u.imponibile, p.imponibile);
+    const tempi = (u.dso != null && p.dso != null) ? u.dso - p.dso : null;
+    h += `<div class="insight"><strong>Confronto a parità di periodo.</strong> Dal 1° gennaio al ${dataIt(REF)},
+      il ${u.anno} vale <strong>${euro(u.imponibile)}</strong> contro i ${euro(p.imponibile)} del ${p.anno}
+      (${cresce == null ? '—' : (cresce > 0 ? '+' : '') + dec(cresce) + '%'}), con ${num(u.documenti)} proforma
+      contro ${num(p.documenti)}. Il tempo medio di incasso è passato da <strong>${dec(p.dso)}</strong> a
+      <strong>${dec(u.dso)} giorni</strong>.
+      ${tempi == null ? '' : tempi < 0
+        ? ' Volumi e circolante si muovono nella stessa direzione: è il segnale che la crescita non sta avvenendo a scapito della cassa.'
+        : ' I tempi si allungano insieme ai volumi: conviene verificare quali linee di attività stiano assorbendo cassa.'}
+      </div>`;
+  }
+
+  if (guadagno != null && guadagno > 3) {
+    h += `<div class="evolution-box"><strong>La leva più forte è il mandato RID.</strong>
+      Le proforma con addebito automatico rientrano in ${dec(rid.con.dso)} giorni e hanno solo il
+      ${pct(rid.con.quotaAperta)} ancora aperto; quelle senza impiegano ${dec(rid.senza.dso)} giorni con il
+      ${pct(rid.senza.quotaAperta)} aperto. A parità di importo il mandato vale circa
+      <strong>${dec(guadagno)} giorni di circolante</strong>: estenderlo alle prestazioni annuali è
+      l'intervento con il ritorno più immediato.</div>`;
+  }
+
+  if (oltre90 > 0) {
+    h += `<div class="warn-box"><strong>Dove si concentra il rischio.</strong>
+      ${euro(oltre90)} su ${num(doc90)} documenti superano i 90 giorni
+      (importo medio ${euro2(oltre90 / Math.max(doc90, 1))}): a questi valori il recupero individuale è
+      antieconomico e conviene un sollecito massivo automatizzato.
+      ${topAperto ? `La posizione singola più pesante è <strong>${esc(topAperto.nome)}</strong> con
+        ${euro(topAperto.aperto)} aperti${topAperto.apertoMax != null ? `, fino a ${num(topAperto.apertoMax)} giorni` : ''}.` : ''}
+      ${critici.length ? ` I clienti con profilo critico sono ${num(critici.length)}, per
+        ${euro(somma(critici, c => c.aperto))} complessivi.` : ''}</div>`;
+  }
+
+  h += `<div class="chart-row" style="margin-top:20px">
+    <div class="chart-card"><h3>Composizione dell'imponibile</h3><div class="chart-wrap"><canvas id="gIncassato"></canvas></div></div>
+    <div class="chart-card"><h3>Anzianità del credito aperto</h3><div class="chart-wrap"><canvas id="gAnzianita"></canvas></div></div>
+  </div>`;
+
+  $('#sez-panoramica').innerHTML = h;
+
+  disegna('gIncassato', { type: 'doughnut',
+    data: { labels: ['Incassato', 'Ancora aperto'], datasets: [{ data: [k.incassato, k.aperto], backgroundColor: ['#27ae60', '#e74c3c'], borderWidth: 0 }] },
+    options: { maintainAspectRatio: false, cutout: '62%', plugins: { ...legenda,
+      tooltip: { callbacks: { label: c => `${c.label}: ${euro(c.parsed)} (${dec(c.parsed / (k.imponibile || 1) * 100)}%)` } } } } });
+
+  disegna('gAnzianita', { type: 'bar',
+    data: { labels: anz.map(a => a.fascia), datasets: [{ data: anz.map(a => a.importo),
+      backgroundColor: ['#27ae60', '#16a085', '#2e86de', '#f39c12', '#e67e22', '#c0392b'], borderRadius: 4 }] },
+    options: { maintainAspectRatio: false, scales: assiEuro, plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: c => `${euro(c.parsed.y)} · ${anz[c.dataIndex].documenti} doc.` } } } } });
+}
+
+function rendiMensile() {
+  const anni = anniDi(VISTE);
+  const emesso = {}, incassato = {};
+  anni.forEach(a => { emesso[a] = Array(12).fill(0); incassato[a] = Array(12).fill(0); });
+  VISTE.forEach(r => {
+    if (emesso[r.anno]) emesso[r.anno][r.mese - 1] += r.imponibile;
+    if (r.incassata && incassato[r.annoInc]) incassato[r.annoInc][r.meseInc - 1] += r.imponibile;
+  });
+  const cum = a => { let s = 0; return emesso[a].map(v => (s += v)); };
+
+  const migliore = anni.map(a => ({ a, i: emesso[a].indexOf(Math.max(...emesso[a])), v: Math.max(...emesso[a]) }));
+  const ultimo = anni[anni.length - 1];
+  const mesiAttivi = emesso[ultimo].filter(v => v > 0).length;
+  const totUltimo = somma(emesso[ultimo]);
+  const proiezione = mesiAttivi ? totUltimo / mesiAttivi * 12 : null;
+
+  let h = `<h2>📅 Andamento mensile dell'imponibile</h2>
+    <div class="chart-card"><h3>Imponibile emesso mese per mese (€ netti)</h3>
+      <div class="chart-wrap-lg"><canvas id="gMese"></canvas></div></div>
+    <div class="chart-row">
+      <div class="chart-card"><h3>Imponibile cumulato — confronto fra anni</h3><div class="chart-wrap"><canvas id="gCum"></canvas></div></div>
+      <div class="chart-card"><h3>Emesso e incassato per mese di competenza</h3><div class="chart-wrap"><canvas id="gEmInc"></canvas></div></div>
+    </div>`;
+
+  h += `<div class="insight"><strong>Stagionalità.</strong> ` +
+    migliore.map(m => `Nel ${m.a} il mese più forte è stato <strong>${MESI[m.i]}</strong> (${euro(m.v)})`).join('; ') +
+    `. I picchi seguono il calendario degli adempimenti, quindi vanno letti come ricorrenze e non come variazioni di andamento.</div>`;
+
+  if (proiezione && mesiAttivi < 12) {
+    h += `<div class="evolution-box"><strong>Proiezione ${ultimo}.</strong> Con ${euro(totUltimo)} in
+      ${mesiAttivi} mesi di attività il ritmo è di circa ${euro(totUltimo / mesiAttivi)} al mese: a fine anno
+      il valore atteso è intorno a <strong>${euro(proiezione)}</strong>, a parità di condizioni. È una
+      proiezione lineare: non tiene conto della stagionalità dei mesi che mancano, che nei dati storici
+      pesano più della media.</div>`;
+  }
+
+  $('#sez-mensile').innerHTML = h;
+
+  disegna('gMese', { type: 'bar',
+    data: { labels: MESI, datasets: anni.map((a, i) => ({ label: String(a), data: emesso[a], backgroundColor: COLORE_ANNO[i % 5], borderRadius: 4 })) },
+    options: { maintainAspectRatio: false, scales: assiEuro, plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${euro(c.parsed.y)}` } } } } });
+
+  disegna('gCum', { type: 'line',
+    data: { labels: MESI, datasets: anni.map((a, i) => ({ label: String(a), data: cum(a), borderColor: COLORE_ANNO[i % 5],
+      backgroundColor: COLORE_ANNO[i % 5] + '22', fill: true, tension: .25, pointRadius: 2.5 })) },
+    options: { maintainAspectRatio: false, scales: assiEuro, plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${euro(c.parsed.y)}` } } } } });
+
+  const etichette = [], serieEm = [], serieIn = [];
+  anni.forEach(a => MESI.forEach((m, i) => {
+    if (emesso[a][i] || incassato[a][i]) { etichette.push(`${m} ${String(a).slice(2)}`); serieEm.push(emesso[a][i]); serieIn.push(incassato[a][i]); }
+  }));
+  disegna('gEmInc', { type: 'bar',
+    data: { labels: etichette, datasets: [
+      { label: 'Emesso', data: serieEm, backgroundColor: '#1a3a5c', borderRadius: 3 },
+      { label: 'Incassato', data: serieIn, type: 'line', borderColor: '#27ae60', backgroundColor: '#27ae6033', tension: .25, pointRadius: 2 }] },
+    options: { maintainAspectRatio: false, scales: assiEuro, plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${euro(c.parsed.y)}` } } } } });
+}
+
+function rendiTempi() {
+  const anni = anniDi(VISTE);
+  const perAnno = anni.map(a => VISTE.filter(r => r.anno === a));
+  const orizzonti = perAnno.map(orizzonteUtile).filter(x => x != null);
+  const o = orizzonti.length ? Math.min(...orizzonti) : null;
+  const curve = perAnno.map(rr => curva(rr, o));
+  const tappe = (curve.find(c => c.length) || []).map(p => p.giorni);
+  const fasceAnno = perAnno.map(fasce);
+  const fam = tempiPerFamiglia(VISTE);
+  const k = indicatori(VISTE);
+  const aperte = VISTE.filter(r => !r.incassata).sort((a, b) => b.ggAperti - a.ggAperti);
+
+  let h = `<h2>⏱️ Analisi delle tempistiche di incasso</h2><div class="kpi-grid">`;
+  h += kpi('Tempo medio ponderato', gg(k.dso), 'pesato sull\'imponibile di ogni documento');
+  h += kpi('Tempo mediano', gg(k.dsoMediano), 'metà delle fatture rientra entro', 'green');
+  h += kpi('Quota incassata', pct(k.quotaIncassata), 'sull\'imponibile del periodo', 'green');
+  h += kpi('Posizioni aperte', num(k.documentiAperti), euro(k.aperto), 'orange');
+  h += '</div>';
+
+  h += `<div class="chart-card"><h3>Quanto in fretta rientra il fatturato</h3>
+    <div class="chart-wrap-lg"><canvas id="gCurva"></canvas></div>
+    <div class="kpi-sub" style="margin-top:10px">${o == null
+      ? 'Percentuale cumulata di imponibile incassato entro un dato numero di giorni.'
+      : `Percentuale cumulata di imponibile incassato entro un dato numero di giorni. Ogni anno è misurato sui soli documenti emessi da almeno ${o} giorni, così il confronto è alla pari e l'anno in corso non risulta penalizzato dalle fatture troppo recenti.`}</div></div>`;
+
+  h += `<div class="chart-row">
+    <div class="chart-card"><h3>Distribuzione per fascia di giorni</h3><div class="chart-wrap"><canvas id="gFasce"></canvas></div></div>
+    <div class="chart-card"><h3>Anzianità delle posizioni aperte</h3><div class="chart-wrap"><canvas id="gAnz2"></canvas></div></div>
+  </div>`;
+
+  h += `<div class="chart-card"><h3>Quali prestazioni assorbono cassa</h3>` +
+    tabella([
+      { t: 'Famiglia di prestazione', v: r => esc(r.nome) },
+      { t: 'Doc.', num: true, v: r => num(r.documenti) },
+      { t: 'Imponibile', num: true, v: r => euro(r.imponibile) },
+      { t: 'Tempo medio', num: true, v: r => gg(r.dso) },
+      { t: 'Mediana', num: true, v: r => gg(r.mediana) },
+      { t: 'Ancora aperto', num: true, v: r => `<span class="tag ${r.quotaAperta > 25 ? 'tag-red' : r.quotaAperta > 10 ? 'tag-orange' : 'tag-green'}">${pct(r.quotaAperta)}</span>` }
+    ], fam, { nota: 'Ogni documento è attribuito alla famiglia della voce di importo prevalente.' }) + '</div>';
+
+  const peggiore = fam.filter(f => f.imponibile > somma(fam, x => x.imponibile) * .05).sort((a, b) => b.dso - a.dso)[0];
+  const migliore = fam.filter(f => f.imponibile > somma(fam, x => x.imponibile) * .05).sort((a, b) => a.dso - b.dso)[0];
+  if (peggiore && migliore && peggiore.nome !== migliore.nome) {
+    h += `<div class="insight"><strong>Il divario fra le linee di servizio.</strong>
+      <strong>${esc(migliore.nome)}</strong> rientra in ${dec(migliore.dso)} giorni con il ${pct(migliore.quotaAperta)} aperto,
+      mentre <strong>${esc(peggiore.nome)}</strong> impiega ${dec(peggiore.dso)} giorni e lascia il
+      ${pct(peggiore.quotaAperta)} da incassare. Sono ${dec(peggiore.dso - migliore.dso)} giorni di differenza a parità di studio:
+      il problema non è il cliente ricorrente, è la prestazione fatturata fuori dal ciclo di addebito automatico.</div>`;
+  }
+
+  h += `<div class="chart-card" style="margin-top:20px"><h3>Posizioni ancora aperte (dalle più vecchie)</h3>` +
+    tabella([
+      { t: 'N. doc.', v: r => esc(r.n_doc) },
+      { t: 'Sez.', v: r => `<span class="tag tag-grey">${esc(r.sezionale)}</span>` },
+      { t: 'Cliente', v: r => `<div class="cliente-cell" title="${esc(r.cliente)}">${esc(r.cliente)}</div>` },
+      { t: 'Data', num: true, v: r => dataIt(r.data_doc) },
+      { t: 'Imponibile', num: true, v: r => euro2(r.imponibile) },
+      { t: 'Lordo', num: true, v: r => euro2(r.totale) },
+      { t: 'Giorni aperti', num: true, v: r => `<span class="tag ${r.ggAperti > 180 ? 'tag-red' : r.ggAperti > 90 ? 'tag-orange' : 'tag-grey'}">${num(r.ggAperti)}</span>` }
+    ], aperte.slice(0, 60),
+    { nota: aperte.length > 60 ? `Mostrate le 60 posizioni più vecchie su ${num(aperte.length)} totali.` : `${num(aperte.length)} posizioni aperte al ${dataIt(REF)}.` }) + '</div>';
+
+  $('#sez-tempi').innerHTML = h;
+
+  disegna('gCurva', { type: 'line',
+    data: { labels: tappe, datasets: anni.map((a, i) => ({ label: String(a),
+      data: curve[i].map(p => p.quota), borderColor: COLORE_ANNO[i % 5], backgroundColor: COLORE_ANNO[i % 5] + '1a',
+      fill: false, tension: .25, pointRadius: 3 })) },
+    options: { maintainAspectRatio: false, scales: { ...assiPct,
+        x: { title: { display: true, text: 'giorni dalla data proforma' }, grid: { display: false } } },
+      plugins: { ...legenda, tooltip: { callbacks: { title: c => `Entro ${c[0].label} giorni`, label: c => `${c.dataset.label}: ${pct(c.parsed.y)}` } } } } });
+
+  disegna('gFasce', { type: 'bar',
+    data: { labels: FASCE_GG.map(f => f[1]), datasets: anni.map((a, i) => ({ label: String(a),
+      data: fasceAnno[i].map(f => f.quota), backgroundColor: COLORE_ANNO[i % 5], borderRadius: 4 })) },
+    options: { maintainAspectRatio: false, scales: assiPct, plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${pct(c.parsed.y)}` } } } } });
+
+  const anz = anzianita(VISTE);
+  disegna('gAnz2', { type: 'doughnut',
+    data: { labels: anz.map(a => a.fascia), datasets: [{ data: anz.map(a => a.importo),
+      backgroundColor: ['#27ae60', '#16a085', '#2e86de', '#f39c12', '#e67e22', '#c0392b'], borderWidth: 0 }] },
+    options: { maintainAspectRatio: false, cutout: '58%', plugins: { ...legenda,
+      tooltip: { callbacks: { label: c => `${c.label}: ${euro(c.parsed)} · ${anz[c.dataIndex].documenti} doc.` } } } } });
+}
+
+function rendiClienti() {
+  const cl = schede(VISTE);
+  const tot = somma(cl, c => c.imponibile) || 1;
+  let cum = 0;
+  const pareto = cl.map((c, i) => { cum += c.imponibile; return { x: i + 1, y: cum / tot * 100 }; });
+  const quotaAl = n => pareto[Math.min(n, pareto.length) - 1]?.y ?? 0;
+
+  const conteggi = {};
+  GIUDIZI.forEach(g => conteggi[g[1]] = cl.filter(c => c.giudizio[1] === g[1]).length);
+  const cronici = cl.filter(c => c.profilo === 'cronico' && c.imponibile >= 1000);
+  const episodici = cl.filter(c => c.profilo === 'episodico' && c.imponibile >= 1000);
+
+  const q = stato.cerca.trim().toUpperCase();
+  let visibili = cl.filter(c => {
+    if (q && !c.nome.toUpperCase().includes(q)) return false;
+    if (stato.filtroClienti === 'aperti') return c.documentiAperti > 0;
+    if (stato.filtroClienti === 'cronici') return c.profilo === 'cronico';
+    if (stato.filtroClienti !== 'tutti') return c.giudizio[1] === stato.filtroClienti;
+    return true;
+  });
+  const campo = { imponibile: c => c.imponibile, dso: c => c.dso ?? -1, aperto: c => c.aperto,
+                  punteggio: c => c.punteggio, documenti: c => c.documenti, nome: c => c.nome }[stato.ordineClienti] || (c => c.imponibile);
+  visibili = [...visibili].sort((a, b) => {
+    const x = campo(a), y = campo(b);
+    const d = typeof x === 'string' ? x.localeCompare(y, 'it') : x - y;
+    return stato.discClienti ? -d : d;
+  });
+
+  const ritardo = cl.filter(c => c.dso != null && c.imponibile >= 1000).sort((a, b) => b.dso - a.dso).slice(0, 15);
+  const maxDso = Math.max(...ritardo.map(c => c.dso), 1);
+
+  let h = `<h2>🔴 Clienti — chi paga bene e chi va sollecitato</h2><div class="kpi-grid">`;
+  h += kpi('Clienti nel periodo', num(cl.length), euro(tot));
+  h += kpi('Eccellenti e affidabili', num((conteggi['Eccellente'] || 0) + (conteggi['Affidabile'] || 0)), `su ${num(cl.length)} clienti`, 'green');
+  h += kpi('Da monitorare', num(conteggi['Da monitorare'] || 0), 'pagano tardi o hanno esposizione', 'orange');
+  h += kpi('Critici', num(conteggi['Critico'] || 0), `${euro(somma(cl.filter(c => c.giudizio[1] === 'Critico'), c => c.aperto))} esposti`, 'red');
+  h += '</div>';
+
+  h += `<div class="chart-row">
+    <div class="chart-card"><h3>Top 15 clienti per giorni medi di incasso</h3><div class="chart-wrap-lg"><canvas id="gRitardi"></canvas></div></div>
+    <div class="chart-card"><h3>Concentrazione del fatturato</h3><div class="chart-wrap-lg"><canvas id="gPareto"></canvas></div>
+      <div class="kpi-sub" style="margin-top:8px">Primi 5: <strong>${pct(quotaAl(5))}</strong> · primi 10: <strong>${pct(quotaAl(10))}</strong> · primi 20: <strong>${pct(quotaAl(20))}</strong> · primi 50: <strong>${pct(quotaAl(50))}</strong></div>
+    </div></div>`;
+
+  if (cronici.length || episodici.length) {
+    h += `<div class="warn-box"><strong>Ritardatari abituali o incidenti isolati.</strong>
+      ${num(cronici.length)} clienti hanno una mediana oltre i 30 giorni: pagano sistematicamente tardi e vanno
+      affrontati rivedendo le condizioni, possibilmente con mandato RID.
+      Altri ${num(episodici.length)} hanno una media molto più alta della mediana: pagano bene, ma una singola
+      posizione di importo elevato trascina il dato. Per questi basta chiudere l'eccezione — cambiare le
+      condizioni sarebbe sproporzionato e rischierebbe di irritare un buon cliente.
+      ${cronici.length ? `<br>Cronici principali: ${cronici.slice(0, 5).map(c => `<strong>${esc(c.nome)}</strong> (${dec(c.dso)} gg)`).join(', ')}.` : ''}</div>`;
+  }
+
+  h += `<div class="chart-card" style="margin-top:20px">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px">
+      <div class="filtro" id="filtroClienti">
+        ${[['tutti', 'Tutti'], ['Eccellente', 'Eccellenti'], ['Affidabile', 'Affidabili'], ['Da monitorare', 'Da monitorare'], ['Critico', 'Critici'], ['aperti', 'Con posizioni aperte'], ['cronici', 'Ritardo abituale']]
+          .map(([id, t]) => `<button data-f="${id}" aria-pressed="${stato.filtroClienti === id}">${t}</button>`).join('')}
+      </div>
+      <input type="search" id="cercaCliente" placeholder="Cerca cliente" value="${esc(stato.cerca)}" style="min-width:200px">
+      <div class="spacer"></div>
+      <button class="btn ghost" id="esportaClienti">Esporta in CSV</button>
+    </div>`;
+
+  const th = (id, t, n) => `<th class="sortable ${n ? 'num' : ''}" data-o="${id}">${t}${stato.ordineClienti === id ? (stato.discClienti ? ' ↓' : ' ↑') : ''}</th>`;
+  h += `<div class="tab-scroll"><table><thead><tr>
+      ${th('nome', 'Cliente')}${th('punteggio', 'Giudizio')}<th>Ritmo di pagamento</th>
+      ${th('documenti', 'Doc.', 1)}${th('imponibile', 'Imponibile', 1)}${th('dso', 'Tempo medio', 1)}
+      <th class="num">Mediana</th>${th('aperto', 'Aperto', 1)}<th class="num">Da giorni</th><th class="num">Ultimo doc.</th>
+    </tr></thead><tbody>`;
+  visibili.slice(0, 250).forEach(c => {
+    h += `<tr>
+      <td><div class="cliente-cell" title="${esc(c.nome)}">${esc(c.nome)}</div></td>
+      <td><span class="tag tag-${c.giudizio[2]}">${c.giudizio[1]} · ${c.punteggio}</span></td>
+      <td>${ritmo(c.tempi, c.righe.filter(r => !r.incassata).map(r => r.ggAperti))}</td>
+      <td class="num">${num(c.documenti)}</td>
+      <td class="num">${euro(c.imponibile)}</td>
+      <td class="num">${gg(c.dso)}</td>
+      <td class="num">${gg(c.mediana)}</td>
+      <td class="num">${c.aperto > 0 ? `<span style="color:var(--danger);font-weight:600">${euro(c.aperto)}</span>` : '—'}</td>
+      <td class="num">${c.apertoMax == null ? '—' : num(c.apertoMax)}</td>
+      <td class="num">${dataIt(c.ultimo)}</td></tr>`;
+  });
+  h += `</tbody></table></div>
+    <div class="kpi-sub" style="margin-top:10px">
+      Il punteggio combina velocità di pagamento (45%), quota di fatturato ancora aperta (35%) e anzianità della
+      posizione più vecchia (20%). Nel <strong>ritmo di pagamento</strong> ogni tacca è una fattura, collocata
+      secondo i giorni impiegati per incassarla; le tratteggiate rosse sono le posizioni ancora aperte, e i
+      trattini verticali segnano le soglie di 15, 30 e 60 giorni.
+      ${visibili.length > 250 ? `<br>Mostrati i primi 250 clienti su ${num(visibili.length)} che corrispondono ai filtri.` : ''}
+    </div></div>`;
+
+  $('#sez-clienti').innerHTML = h;
+
+  $('#filtroClienti').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    stato.filtroClienti = b.dataset.f; rendiClienti();
+  });
+  $('#cercaCliente').addEventListener('input', e => {
+    stato.cerca = e.target.value;
+    clearTimeout(window._t); window._t = setTimeout(() => { rendiClienti(); $('#cercaCliente').focus(); }, 250);
+  });
+  document.querySelectorAll('#sez-clienti th.sortable').forEach(t => t.addEventListener('click', () => {
+    const o = t.dataset.o;
+    if (stato.ordineClienti === o) stato.discClienti = !stato.discClienti;
+    else { stato.ordineClienti = o; stato.discClienti = true; }
+    rendiClienti();
+  }));
+  $('#esportaClienti').addEventListener('click', () => esportaCsv(visibili));
+
+  disegna('gRitardi', { type: 'bar',
+    data: { labels: ritardo.map(c => c.nome.length > 30 ? c.nome.slice(0, 30) + '…' : c.nome),
+      datasets: [{ data: ritardo.map(c => c.dso),
+        backgroundColor: ritardo.map(c => c.dso > 90 ? '#e74c3c' : c.dso > 45 ? '#f39c12' : '#2e86de'), borderRadius: 4 }] },
+    options: { indexAxis: 'y', maintainAspectRatio: false,
+      scales: { x: { beginAtZero: true, ticks: { callback: v => v + ' gg' }, grid: { color: '#eef1f6' } }, y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${dec(c.parsed.x)} gg · ${euro(ritardo[c.dataIndex].imponibile)} · mediana ${dec(ritardo[c.dataIndex].mediana)} gg` } } } } });
+
+  disegna('gPareto', { type: 'line',
+    data: { datasets: [{ data: pareto, borderColor: '#1a3a5c', backgroundColor: '#2e86de33', fill: true, tension: .2, pointRadius: 0, borderWidth: 2 }] },
+    options: { maintainAspectRatio: false, parsing: false,
+      scales: { x: { type: 'linear', title: { display: true, text: 'n. clienti ordinati per fatturato' }, grid: { display: false } },
+                y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#eef1f6' } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { title: c => `Primi ${c[0].parsed.x} clienti`, label: c => pct(c.parsed.y) } } } } });
+}
+
+function rendiAttivita() {
+  const anni = anniDi(VISTE);
+  const fam = ripartizione(VISTE, true), voci = ripartizione(VISTE, false);
+  const totAnno = {};
+  anni.forEach(a => totAnno[a] = somma(fam, f => f.anni[a] || 0) || 1);
+  const top10 = voci.slice(0, 10), top15 = voci.slice(0, 15);
+  const tot = somma(fam, f => f.importo) || 1;
+  const a1 = anni[anni.length - 2], a2 = anni[anni.length - 1];
+
+  let h = `<h2>🏷️ Suddivisione per tipologia di attività</h2>
+    <div class="chart-row">
+      <div class="chart-card"><h3>Top 10 voci — quota % dell'imponibile</h3><div class="chart-wrap-lg"><canvas id="gTorta"></canvas></div></div>
+      <div class="chart-card"><h3>Peso delle famiglie, anno per anno (%)</h3><div class="chart-wrap-lg"><canvas id="gFam"></canvas></div></div>
+    </div>
+    <div class="chart-card"><h3>Imponibile per voce — top 15 (€)</h3><div class="chart-wrap-lg"><canvas id="gVoci"></canvas></div></div>`;
+
+  const prima = fam[0], seconde3 = somma(fam.slice(0, 3), f => f.quota);
+  if (prima) {
+    h += `<div class="insight"><strong>Composizione del fatturato.</strong>
+      <strong>${esc(prima.nome)}</strong> vale il ${pct(prima.quota)} del totale (${euro(prima.importo)} su ${euro(tot)}).
+      Le prime tre famiglie coprono <strong>${pct(seconde3)}</strong> del fatturato:
+      ${seconde3 > 75 ? 'la base di ricavo è concentrata, quindi vale la pena presidiare le condizioni di rinnovo proprio su queste linee.'
+                      : 'la base di ricavo è distribuita su più linee di servizio, il che riduce l\'esposizione a una singola tipologia di incarico.'}</div>`;
+  }
+
+  const colF = [
+    { t: 'Famiglia', v: r => esc(r.nome) },
+    ...anni.map(a => ({ t: String(a), num: true, v: r => euro(r.anni[a] || 0) })),
+    { t: 'Totale', num: true, v: r => euro(r.importo) },
+    { t: 'Quota', num: true, v: r => `${pct(r.quota)} ${barra(r.quota, '#2e86de')}` },
+    ...(a1 && a2 ? [{ t: `${a1} → ${a2}`, num: true, v: r => {
+      const va = variazione(r.anni[a2] || 0, r.anni[a1] || 0);
+      return va == null ? '—' : `<span class="tag ${va >= 0 ? 'tag-green' : 'tag-red'}">${va > 0 ? '+' : ''}${dec(va)}%</span>`; } }] : []),
+    { t: 'Doc.', num: true, v: r => num(r.documenti) }
+  ];
+  h += `<div class="chart-card"><h3>Dettaglio per famiglia</h3>${tabella(colF, fam)}</div>`;
+
+  const colV = [
+    { t: 'Voce', v: r => esc(r.nome) },
+    { t: 'Famiglia', v: r => `<span class="tag tag-grey">${esc(famiglia(r.nome))}</span>` },
+    ...anni.map(a => ({ t: String(a), num: true, v: r => euro(r.anni[a] || 0) })),
+    { t: 'Totale', num: true, v: r => euro(r.importo) },
+    { t: 'Quota', num: true, v: r => pct(r.quota) },
+    { t: 'Doc.', num: true, v: r => num(r.documenti) }
+  ];
+  h += `<div class="chart-card"><h3>Dettaglio per singola voce</h3>${tabella(colV, voci.slice(0, 60),
+    { nota: 'Le percentuali sono calcolate sui soli valori positivi delle colonne di dettaglio: le voci negative dell\'export sono storni e sconti, e falserebbero la composizione.' })}</div>`;
+
+  $('#sez-attivita').innerHTML = h;
+
+  disegna('gTorta', { type: 'doughnut',
+    data: { labels: top10.map(v => v.nome.length > 28 ? v.nome.slice(0, 28) + '…' : v.nome),
+      datasets: [{ data: top10.map(v => v.importo), backgroundColor: PALETTE, borderWidth: 0 }] },
+    options: { maintainAspectRatio: false, cutout: '55%',
+      plugins: { legend: { position: 'right', labels: { boxWidth: 10, usePointStyle: true, pointStyle: 'circle', font: { size: 11 } } },
+        tooltip: { callbacks: { label: c => `${euro(c.parsed)} · ${dec(c.parsed / tot * 100)}%` } } } } });
+
+  disegna('gFam', { type: 'bar',
+    data: { labels: fam.map(f => f.nome.length > 26 ? f.nome.slice(0, 26) + '…' : f.nome),
+      datasets: anni.map((a, i) => ({ label: String(a), data: fam.map(f => (f.anni[a] || 0) / totAnno[a] * 100),
+        backgroundColor: COLORE_ANNO[i % 5], borderRadius: 3 })) },
+    options: { indexAxis: 'y', maintainAspectRatio: false,
+      scales: { x: { beginAtZero: true, ticks: { callback: v => v + '%' }, grid: { color: '#eef1f6' } }, y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
+      plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${pct(c.parsed.x)}` } } } } });
+
+  disegna('gVoci', { type: 'bar',
+    data: { labels: top15.map(v => v.nome.length > 30 ? v.nome.slice(0, 30) + '…' : v.nome),
+      datasets: [{ data: top15.map(v => v.importo), backgroundColor: PALETTE, borderRadius: 4 }] },
+    options: { indexAxis: 'y', maintainAspectRatio: false,
+      scales: { x: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eef1f6' } }, y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => euro(c.parsed.x) } } } } });
+}
+
+function rendiConfronto() {
+  const anni = anniDi(VISTE);
+  if (anni.length < 2) {
+    $('#sez-confronto').innerHTML = `<h2>🔄 Confronto cross-anno</h2>
+      <div class="chart-card"><div class="vuoto"><p>L'archivio contiene un solo esercizio.
+      Carica l'export di un anno precedente per attivare i confronti.</p></div></div>`;
+    return;
+  }
+  const doy = Math.floor((new Date(REF) - new Date(+REF.slice(0, 4), 0, 0)) / 864e5);
+  const omogeneo = stato.omogeneo !== false;
+  const sel = omogeneo ? VISTE.filter(r => r.doy <= doy) : VISTE;
+  const dati = anni.map(a => ({ anno: a, ...indicatori(sel.filter(r => r.anno === a)) }));
+  const a1 = dati[dati.length - 2], a2 = dati[dati.length - 1];
+  const mov = movimenti(VISTE, a1.anno, a2.anno);
+
+  const famA = ripartizione(VISTE.filter(r => r.anno === a1.anno), true);
+  const famB = ripartizione(VISTE.filter(r => r.anno === a2.anno), true);
+  const nomi = [...new Set([...famA, ...famB].map(f => f.nome))];
+  const mix = nomi.map(n => {
+    const x = famA.find(f => f.nome === n), y = famB.find(f => f.nome === n);
+    return { nome: n, prima: x?.importo || 0, dopo: y?.importo || 0, qPrima: x?.quota || 0, qDopo: y?.quota || 0 };
+  }).sort((a, b) => b.dopo - a.dopo);
+
+  const voci = [
+    ['Proforma emesse', a => a.documenti, num, false],
+    ['Imponibile', a => a.imponibile, euro, false],
+    ['Totale lordo', a => a.totale, euro, false],
+    ['Clienti attivi', a => a.clienti, num, false],
+    ['Ticket medio', a => a.ticket, euro, false],
+    ['Ticket mediano', a => a.ticketMediano, euro, false],
+    ['Incassato su emesso', a => a.quotaIncassata, pct, false],
+    ['Tempo medio di incasso', a => a.dso, gg, true],
+    ['Tempo mediano di incasso', a => a.dsoMediano, gg, true],
+    ['Credito ancora aperto', a => a.aperto, euro, true]
+  ];
+
+  let h = `<h2>🔄 Confronto cross-anno</h2>
+    <div style="margin-bottom:16px"><div class="filtro" id="filtroOmog">
+      <button data-o="1" aria-pressed="${omogeneo}">Finestra omogenea (1 gen – ${dataIt(REF).slice(0, 5)})</button>
+      <button data-o="0" aria-pressed="${!omogeneo}">Anni interi</button>
+    </div></div>`;
+
+  if (omogeneo) {
+    h += `<div class="warn-box"><strong>Perché la finestra omogenea.</strong> Confrontare un anno chiuso con
+      uno in corso gonfia il divario: qui entrambi gli esercizi sono tagliati alla stessa data, così i volumi
+      sono davvero comparabili.</div>`;
+  }
+
+  h += '<div class="kpi-grid" style="margin-top:16px">';
+  h += kpi(`Imponibile ${a2.anno}`, euro(a2.imponibile), `${a1.anno}: ${euro(a1.imponibile)}`, '', deltaHtml(variazione(a2.imponibile, a1.imponibile)));
+  h += kpi('Proforma emesse', num(a2.documenti), `${a1.anno}: ${num(a1.documenti)}`, '', deltaHtml(variazione(a2.documenti, a1.documenti)));
+  h += kpi('Tempo medio di incasso', gg(a2.dso), `${a1.anno}: ${dec(a1.dso)} gg`,
+           (a2.dso ?? 0) > (a1.dso ?? 0) ? 'orange' : 'green', deltaHtml(variazione(a2.dso, a1.dso), true));
+  h += kpi('Ritenzione clienti', pct(mov.ritenzione), `${num(mov.mantenuti)} confermati · ${num(mov.nuovi)} nuovi`, 'green');
+  h += '</div>';
+
+  h += `<div class="chart-card"><h3>Indicatori a confronto</h3><div class="tab-scroll"><table><thead><tr>
+    <th>Indicatore</th>${dati.map(d => `<th class="num">${d.anno}</th>`).join('')}<th class="num">${a1.anno} → ${a2.anno}</th>
+    </tr></thead><tbody>`;
+  voci.forEach(([nome, v, f, inverso]) => {
+    const va = variazione(v(a2), v(a1));
+    const buono = va == null ? null : (inverso ? va < 0 : va > 0);
+    h += `<tr><td>${nome}</td>${dati.map(d => `<td class="num">${f(v(d))}</td>`).join('')}
+      <td class="num">${va == null ? '—' : `<span class="tag ${buono ? 'tag-green' : 'tag-red'}">${va > 0 ? '+' : ''}${dec(va)}%</span>`}</td></tr>`;
+  });
+  h += `</tbody></table></div><div class="kpi-sub" style="margin-top:10px">
+    Su tempi di incasso e credito aperto il verde indica una riduzione: sono voci in cui scendere è il risultato desiderato.</div></div>`;
+
+  h += `<div class="chart-row">
+    <div class="chart-card"><h3>Composizione: incassato e da incassare</h3><div class="chart-wrap"><canvas id="gComp"></canvas></div></div>
+    <div class="chart-card"><h3>Movimenti della base clienti</h3><div class="chart-wrap"><canvas id="gMov"></canvas></div>
+      <div class="kpi-sub" style="margin-top:8px">Confermati ${num(mov.mantenuti)} (${euro(mov.impMantenuti)}) ·
+      nuovi ${num(mov.nuovi)} (${euro(mov.impNuovi)}) · non più attivi ${num(mov.persi)} (${euro(mov.impPersi)} nel ${a1.anno})</div>
+    </div></div>`;
+
+  h += `<div class="evolution-box"><strong>Da dove arriva la crescita.</strong>
+    ${mov.impMantenuti > mov.impNuovi * 3
+      ? `Il ${pct(mov.impMantenuti / (a2.imponibile || 1) * 100)} del fatturato ${a2.anno} viene da clienti già attivi nel ${a1.anno}: la crescita è guidata dall'ampliamento del mandato sul portafoglio esistente, non dall'acquisizione.`
+      : `L'acquisizione contribuisce in misura rilevante: ${euro(mov.impNuovi)} arrivano da ${num(mov.nuovi)} clienti nuovi.`}
+    Il fatturato dei clienti non più attivi (${euro(mov.impPersi)}) va letto come base da recuperare più che come
+    perdita certa: molti rientrano con gli adempimenti annuali.</div>`;
+
+  h += `<div class="chart-card" style="margin-top:20px"><h3>Come si è spostato il mix</h3>` +
+    tabella([
+      { t: 'Famiglia', v: r => esc(r.nome) },
+      { t: String(a1.anno), num: true, v: r => euro(r.prima) },
+      { t: String(a2.anno), num: true, v: r => euro(r.dopo) },
+      { t: 'Quota', num: true, v: r => `${dec(r.qPrima)}% → ${dec(r.qDopo)}%` },
+      { t: 'Var.', num: true, v: r => { const va = variazione(r.dopo, r.prima);
+          return va == null ? '—' : `<span class="tag ${va >= 0 ? 'tag-green' : 'tag-red'}">${va > 0 ? '+' : ''}${dec(va)}%</span>`; } }
+    ], mix) + '</div>';
+
+  $('#sez-confronto').innerHTML = h;
+
+  $('#filtroOmog').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    stato.omogeneo = b.dataset.o === '1'; rendiConfronto();
+  });
+
+  disegna('gComp', { type: 'bar',
+    data: { labels: dati.map(d => String(d.anno)), datasets: [
+      { label: 'Incassato', data: dati.map(d => d.incassato), backgroundColor: '#27ae60', borderRadius: 4 },
+      { label: 'Ancora aperto', data: dati.map(d => d.aperto), backgroundColor: '#e74c3c', borderRadius: 4 }] },
+    options: { maintainAspectRatio: false, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eef1f6' } } },
+      plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${euro(c.parsed.y)}` } } } } });
+
+  disegna('gMov', { type: 'doughnut',
+    data: { labels: ['Confermati', 'Nuovi', 'Non più attivi'],
+      datasets: [{ data: [mov.mantenuti, mov.nuovi, mov.persi], backgroundColor: ['#2e86de', '#27ae60', '#e74c3c'], borderWidth: 0 }] },
+    options: { maintainAspectRatio: false, cutout: '58%', plugins: { ...legenda } } });
+}
+
+function rendiArchivio() {
+  let h = `<h2>📂 Archivio e caricamenti</h2>
+    <div class="chart-card">
+      <div class="drop" id="drop2" role="button" tabindex="0">
+        <div class="big">Aggiungi o aggiorna un export</div>
+        <div class="small">.xlsx, .xls o .csv — anche più file insieme</div>
+        <div class="mapping">Sezionali <span class="tag tag-blue">C</span> <span class="tag tag-blue">P</span>
+          <span class="tag tag-blue">D</span> → Studi Riuniti &nbsp;·&nbsp;
+          <span class="tag tag-green">T</span> → TecnAccise</div>
+      </div>
+      <div id="esito2"></div>
+    </div>`;
+
+  const perStudio = {};
+  TUTTE.forEach(r => { perStudio[r.studio] = (perStudio[r.studio] || 0) + 1; });
+  const perSez = {};
+  TUTTE.forEach(r => { perSez[r.sezionale] = (perSez[r.sezionale] || 0) + 1; });
+
+  h += '<div class="kpi-grid" style="margin-top:20px">';
+  h += kpi('Proforma in archivio', num(TUTTE.length), `${num(store.file.length)} file importati`);
+  Object.entries(perStudio).forEach(([s, n]) => h += kpi(ETICHETTA[s], num(n), 'documenti', s === 'TECNACCISE' ? 'green' : ''));
+  h += kpi('Periodo coperto', `${dataIt(TUTTE.reduce((a, r) => r.data_doc < a ? r.data_doc : a, '9999-12-31')).slice(3)}`,
+           `fino al ${dataIt(REF)}`, 'orange');
+  h += '</div>';
+
+  h += `<div class="chart-card"><h3>Documenti per sezionale</h3>` +
+    tabella([
+      { t: 'Sezionale', v: r => `<span class="tag ${SEZIONALI[r[0]] === 'TECNACCISE' ? 'tag-green' : 'tag-blue'}">${r[0]}</span>` },
+      { t: 'Studio', v: r => ETICHETTA[SEZIONALI[r[0]]] || '—' },
+      { t: 'Documenti', num: true, v: r => num(r[1]) },
+      { t: 'Imponibile', num: true, v: r => euro(somma(TUTTE.filter(x => x.sezionale === r[0]), x => x.imponibile)) }
+    ], Object.entries(perSez).sort()) + '</div>';
+
+  h += `<div class="chart-card"><h3>File importati</h3>` +
+    tabella([
+      { t: 'File', v: f => esc(f.nomeFile) },
+      { t: 'Caricato il', v: f => new Date(f.caricatoIl).toLocaleString('it-IT') },
+      { t: 'Studi', v: f => (f.studi || []).map(s => `<span class="tag tag-grey">${ETICHETTA[s] || s}</span>`).join(' ') },
+      { t: 'Righe', num: true, v: f => num(f.righe) },
+      { t: 'Periodo', v: f => `${dataIt(f.periodo?.da)} – ${dataIt(f.periodo?.a)}` },
+      { t: 'Scartate', num: true, v: f => f.scarti ? `<span class="tag tag-orange">${num(f.scarti)}</span>` : '0' }
+    ], store.file, { nota: store.persistente
+        ? 'L\'archivio è conservato in locale nel browser: alla riapertura ritrovi i dati senza ricaricare i file.'
+        : 'Questo browser non consente la memorizzazione locale: i dati restano solo per la sessione corrente.' }) +
+    `<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+       <button class="btn ghost" id="esportaTutto">Esporta l'archivio in CSV</button>
+       <button class="btn danger" id="svuota">Svuota l'archivio</button>
+     </div></div>`;
+
+  $('#sez-archivio').innerHTML = h;
+  collegaDrop($('#drop2'), $('#esito2'));
+  $('#svuota').addEventListener('click', () => {
+    if (!confirm('Questa operazione elimina tutte le proforma archiviate in questo browser. Procedere?')) return;
+    store.svuota(); avvia();
+  });
+  $('#esportaTutto').addEventListener('click', () => esportaRighe());
+}
+
+/* =====================================================================
+   9. ESPORTAZIONI
+   ===================================================================== */
+function scarica(nome, testo) {
+  const b = new Blob(['\ufeff' + testo], { type: 'text/csv;charset=utf-8' });
+  const a = el('a'); a.href = URL.createObjectURL(b); a.download = nome; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+const csvCampo = (v) => { const s = String(v ?? ''); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const csv = (righe) => righe.map(r => r.map(csvCampo).join(';')).join('\n');
+
+function esportaCsv(clienti) {
+  const r = [['Cliente', 'Documenti', 'Imponibile', 'Incassato', 'Aperto', 'Doc. aperti', 'Tempo medio gg',
+    'Mediana gg', 'Max gg', 'Aperto da gg', 'Punteggio', 'Giudizio', 'Profilo', 'Ultimo documento']];
+  clienti.forEach(c => r.push([c.nome, c.documenti, c.imponibile.toFixed(2), c.incassato.toFixed(2),
+    c.aperto.toFixed(2), c.documentiAperti, c.dso == null ? '' : c.dso.toFixed(1),
+    c.mediana ?? '', c.ggMax ?? '', c.apertoMax ?? '', c.punteggio, c.giudizio[1], c.profilo, dataIt(c.ultimo)]));
+  scarica('clienti-incassi.csv', csv(r));
+}
+
+function esportaRighe() {
+  const r = [['Studio', 'Sezionale', 'N. doc.', 'Data documento', 'Data incasso', 'Giorni', 'Cliente',
+    'Imponibile', 'Cassa', 'IVA', 'Totale', 'Intermediario', 'Attività prevalente']];
+  TUTTE.forEach(x => {
+    const voci = Object.entries(x.attivita || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+    r.push([ETICHETTA[x.studio], x.sezionale, x.n_doc, dataIt(x.data_doc), dataIt(x.data_incasso),
+      x.gg ?? '', x.cliente, x.imponibile.toFixed(2), x.cassa.toFixed(2), x.iva.toFixed(2),
+      x.totale.toFixed(2), x.intermediario ?? '', voci[0]?.[0] ?? '']);
+  });
+  scarica('archivio-proforma.csv', csv(r));
+}
+
+/* =====================================================================
+   10. INTERFACCIA
+   ===================================================================== */
+const TAB = [
+  ['panoramica', '📈 Panoramica', rendiPanoramica],
+  ['mensile', '📅 Andamento mensile', rendiMensile],
+  ['tempi', '⏱️ Tempi di incasso', rendiTempi],
+  ['clienti', '🔴 Clienti', rendiClienti],
+  ['attivita', '🏷️ Attività', rendiAttivita],
+  ['confronto', '🔄 Confronto cross-anno', rendiConfronto],
+  ['archivio', '📂 Archivio', rendiArchivio]
+];
+
+function rendiTab() {
+  $('#tabs').innerHTML = TAB.map(([id, t]) =>
+    `<button role="tab" data-tab="${id}" aria-selected="${stato.tab === id}">${t}</button>`).join('');
+  $('#tabs').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    stato.tab = b.dataset.tab; mostra();
+  }));
+}
+
+function rendiToolbar() {
+  const studi = [...new Set(TUTTE.map(r => r.studio))];
+  const sezDisp = [...new Set(TUTTE.filter(r => stato.studio === 'TUTTI' || r.studio === stato.studio).map(r => r.sezionale))].sort();
+  const anni = anniDi(TUTTE).sort((a, b) => b - a);
+
+  let h = '';
+  if (studi.length > 1) {
+    h += `<span class="filtro-label">Studio</span><div class="filtro" data-g="studio">
+      <button data-v="TUTTI" aria-pressed="${stato.studio === 'TUTTI'}">Entrambi</button>` +
+      studi.map(s => `<button data-v="${s}" aria-pressed="${stato.studio === s}">${ETICHETTA[s]}</button>`).join('') + '</div>';
+  }
+  if (sezDisp.length > 1) {
+    h += `<span class="filtro-label">Sezionale</span><div class="filtro" data-g="sezionale">
+      <button data-v="TUTTI" aria-pressed="${stato.sezionale === 'TUTTI'}">Tutti</button>` +
+      sezDisp.map(s => `<button data-v="${s}" aria-pressed="${stato.sezionale === s}">${s}</button>`).join('') + '</div>';
+  }
+  if (anni.length > 1) {
+    h += `<span class="filtro-label">Anno</span><div class="filtro" data-g="anno">
+      <button data-v="TUTTI" aria-pressed="${stato.anno === 'TUTTI'}">Tutti</button>` +
+      anni.map(a => `<button data-v="${a}" aria-pressed="${stato.anno === String(a)}">${a}</button>`).join('') + '</div>';
+  }
+  h += `<div class="spacer"></div>
+        <span class="kpi-sub">${num(VISTE.length)} proforma selezionate · dati al ${dataIt(REF)}</span>`;
+
+  const tb = $('#toolbar');
+  tb.innerHTML = h;
+  tb.hidden = !TUTTE.length;
+  tb.querySelectorAll('.filtro').forEach(f => f.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    stato[f.dataset.g] = b.dataset.v;
+    if (f.dataset.g === 'studio') stato.sezionale = 'TUTTI';
+    ricalcola(); rendiToolbar(); mostra();
+  }));
+}
+
+function rendiBadge() {
+  const anni = anniDi(TUTTE);
+  const k = indicatori(TUTTE);
+  let h = '';
+  if (TUTTE.length) {
+    h += `<span class="badge">${num(TUTTE.length)} proforma</span>`;
+    h += `<span class="badge">${anni.join(' · ')}</span>`;
+    h += `<span class="badge">${num(k.clienti)} clienti</span>`;
+    h += `<span class="badge ok">${euro(k.imponibile)} di imponibile</span>`;
+    if (k.aperto > 0) h += `<span class="badge warn">${euro(k.aperto)} ancora da incassare</span>`;
+  } else {
+    h += `<span class="badge">Nessun dato caricato</span>`;
+  }
+  $('#badges').innerHTML = h;
+  $('#footer-info').textContent = TUTTE.length ? `archivio aggiornato al ${dataIt(REF)}` : 'in attesa del primo caricamento';
+}
+
+function mostra() {
+  const vuoto = !TUTTE.length;
+  $('#benvenuto').hidden = !vuoto;
+  $('#tabs').hidden = vuoto;
+  TAB.forEach(([id]) => $('#sez-' + id).hidden = true);
+  if (vuoto) return;
+  const t = TAB.find(x => x[0] === stato.tab) || TAB[0];
+  $('#sez-' + t[0]).hidden = false;
+  t[2]();
+  rendiTab();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ------------------------------- caricamento ------------------------- */
+function collegaDrop(zona, esito) {
+  if (!zona) return;
+  const input = $('#file');
+  const apri = () => input.click();
+  zona.addEventListener('click', apri);
+  zona.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apri(); } });
+  zona.addEventListener('dragover', e => { e.preventDefault(); zona.classList.add('over'); });
+  zona.addEventListener('dragleave', () => zona.classList.remove('over'));
+  zona.addEventListener('drop', e => { e.preventDefault(); zona.classList.remove('over'); importa([...e.dataTransfer.files], esito); });
+  input.onchange = e => { importa([...e.target.files], esito); e.target.value = ''; };
+}
+
+async function importa(files, esito) {
+  if (!files.length) return;
+  esito.innerHTML = '<div class="insight">Lettura dei file in corso…</div>';
+  let messaggi = [], errori = [];
+  for (const f of files) {
+    try {
+      const a = await leggiFile(f);
+      const { nuove, aggiornate } = store.aggiungi(a);
+      let m = `<strong>${esc(a.nomeFile)}</strong>: ${num(nuove)} nuove proforma`;
+      if (aggiornate) m += `, ${num(aggiornate)} aggiornate`;
+      m += ` · periodo ${dataIt(a.periodo.da)} – ${dataIt(a.periodo.a)} · ${a.studi.map(s => ETICHETTA[s]).join(', ')}`;
+      if (a.scarti.length) m += ` · ${num(a.scarti.length)} righe scartate (${esc(a.scarti[0].motivo)})`;
+      messaggi.push(m);
+    } catch (e) { errori.push(`<strong>${esc(f.name)}</strong>: ${esc(e.message)}`); }
+  }
+  let h = '';
+  if (messaggi.length) h += `<div class="evolution-box">${messaggi.join('<br>')}</div>`;
+  if (errori.length) h += `<div class="err-box">${errori.join('<br>')}</div>`;
+  if (!store.persistente) h += `<div class="warn-box">Questo browser non consente la memorizzazione locale (succede in navigazione privata): i dati resteranno solo per la sessione corrente.</div>`;
+  esito.innerHTML = h;
+  avvia(messaggi.length ? 'panoramica' : null);
+}
+
+function avvia(tab) {
+  ricalcola();
+  if (tab) stato.tab = tab;
+  rendiBadge(); rendiToolbar(); rendiTab(); mostra();
+}
+
+/* ------------------------------------------------------------- start -- */
+store.carica();
+collegaDrop($('#drop'), $('#esito'));
+avvia();
+</script>
+</body>
+</html>
