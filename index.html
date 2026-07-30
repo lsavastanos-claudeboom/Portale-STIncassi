@@ -264,6 +264,7 @@ const COLONNE_FISSE = ['CATEGORIA','N. DOC','DATA DOC.','DATA INCASSO','CLIENTE'
   'IVA 22%','IVA 22% PER CASSA','SPESE ART.15','QUANTITÀ','TOTALE','PROVVIGIONI INTERMEDIARIO',
   'INTERMEDIARIO','DATA EXPORT XML'];
 
+const SENZA_SEZIONALE = '\u0000';   // marcatore interno, mai salvato
 const pulisci = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 const chiave = (s) => pulisci(s).toUpperCase().replace(/[^A-Z0-9]/g, '');
 
@@ -330,9 +331,11 @@ async function leggiFile(file, societa) {
     if (!nDoc && !cliente) continue;
     if (!nDoc || !dDoc) { scarti.push({ riga: r + 1, motivo: 'numero documento o data mancante' }); continue; }
 
-    // Il sezionale è il suffisso del numero documento. Se manca, la riga non
-    // si scarta: finisce in "ND" e resta visibile, così non sparisce in silenzio.
-    const sez = sezionaleDa(nDoc) || 'ND';
+    // Il sezionale è il suffisso del numero documento. Se manca non lo si
+    // inventa: la riga viene marcata e a fine lettura si chiede a quale
+    // sezionale attribuirla. Dedurlo in silenzio ha già prodotto un archivio
+    // sbagliato, e un dato attribuito male è peggio di un dato mancante.
+    const sez = sezionaleDa(nDoc) || SENZA_SEZIONALE;
 
     const attivita = {};
     colAtt.forEach(({ h, i }) => { const n = numeroIt(riga[i]); if (n !== 0) attivita[h] = Math.round(n * 100) / 100; });
@@ -352,7 +355,9 @@ async function leggiFile(file, societa) {
   }
 
   if (!righe.length) throw new Error(`${file.name}: nessuna riga valida da importare.`);
-  return { nomeFile: file.name, societa, righe, scarti, sezionali: [...sezionali].sort(),
+  const senzaSezionale = righe.filter(r => r.sezionale === SENZA_SEZIONALE).length;
+  return { nomeFile: file.name, societa, righe, scarti, senzaSezionale,
+           sezionali: [...sezionali].filter(x => x !== SENZA_SEZIONALE).sort(),
            periodo: { da, a }, caricatoIl: new Date().toISOString() };
 }
 
@@ -454,6 +459,32 @@ const store = {
     return { nuove, aggiornate };
   },
   svuota() { this.righe = []; this.file = []; try { localStorage.removeItem(CHIAVE_ARCHIVIO); } catch (e) {} },
+  /* Rimuove le righe di un singolo caricamento e riscrive i blocchi toccati. */
+  async eliminaImport(idImport) {
+    const daTogliere = this.righe.filter(r => r.imp === idImport);
+    if (!daTogliere.length) return { rimosse: 0 };
+    const blocchi = new Set(daTogliere.map(BLOCCO));
+    this.righe = this.righe.filter(r => r.imp !== idImport);
+    this.file = this.file.filter(f => f.caricatoIl !== idImport);
+    this.salva();
+
+    if (ONLINE && utente) {
+      const rimaste = {};
+      this.righe.forEach(r => { const k = BLOCCO(r); if (blocchi.has(k)) (rimaste[k] ||= []).push(r); });
+      const lotto = db.batch();
+      blocchi.forEach(k => {
+        const ref = db.collection('archivio').doc(k);
+        // Un blocco rimasto vuoto va cancellato, non salvato con zero righe.
+        if (rimaste[k]) lotto.set(ref, { righe: rimaste[k], aggiornatoIl: new Date().toISOString(), aggiornatoDa: utente.email });
+        else lotto.delete(ref);
+      });
+      const schede = await db.collection('caricamenti').where('caricatoIl', '==', idImport).get();
+      schede.forEach(d => lotto.delete(d.ref));
+      await lotto.commit();
+    }
+    return { rimosse: daTogliere.length };
+  },
+
   async svuotaOnline() {
     if (!ONLINE || !utente) return;
     const [a, c] = await Promise.all([db.collection('archivio').get(), db.collection('caricamenti').get()]);
@@ -1347,7 +1378,10 @@ function rendiArchivio() {
       { t: 'Sezionali', v: f => (f.sezionali || []).map(x => `<span class="tag tag-grey">${esc(x)}</span>`).join(' ') },
       { t: 'Righe', num: true, v: f => num(f.righe) },
       { t: 'Periodo', v: f => `${dataIt(f.periodo?.da)} – ${dataIt(f.periodo?.a)}` },
-      { t: 'Scartate', num: true, v: f => f.scarti ? `<span class="tag tag-orange">${num(f.scarti)}</span>` : '0' }
+      { t: 'Scartate', num: true, v: f => f.scarti ? `<span class="tag tag-orange">${num(f.scarti)}</span>` : '0' },
+      { t: '', v: f => f.caricatoIl
+          ? `<button class="btn danger" data-imp="${esc(f.caricatoIl)}" style="padding:4px 10px;font-size:.78rem">Annulla import</button>`
+          : '<span class="tag tag-grey">non tracciato</span>' }
     ], store.file, { nota: store.persistente
         ? 'L\'archivio è conservato in locale nel browser: alla riapertura ritrovi i dati senza ricaricare i file.'
         : 'Questo browser non consente la memorizzazione locale: i dati restano solo per la sessione corrente.' }) +
@@ -1367,6 +1401,20 @@ function rendiArchivio() {
     })();
   });
   $('#esportaTutto').addEventListener('click', () => esportaRighe());
+
+  document.querySelectorAll('#sez-archivio button[data-imp]').forEach(b => b.addEventListener('click', async () => {
+    const id = b.dataset.imp;
+    const scheda = store.file.find(f => f.caricatoIl === id);
+    const quante = store.righe.filter(r => r.imp === id).length;
+    if (!quante) { alert('Questo caricamento è precedente al tracciamento: le sue righe non sono distinguibili dalle altre. Si può rimuovere solo svuotando l\'archivio e reimportando.'); return; }
+    if (!confirm(`Verranno eliminati ${num(quante)} movimenti importati da "${scheda ? scheda.nomeFile : id}".\n\nGli altri caricamenti non vengono toccati. Procedere?`)) return;
+    b.disabled = true; b.textContent = 'Elimino…';
+    try {
+      const { rimosse } = await store.eliminaImport(id);
+      avvia();
+      alert(`Eliminati ${num(rimosse)} movimenti.`);
+    } catch (e) { alert('Errore durante l\'eliminazione: ' + e.message); b.disabled = false; b.textContent = 'Annulla import'; }
+  }));
 }
 
 /* =====================================================================
@@ -1532,10 +1580,34 @@ async function importa(files, esito, societa) {
   for (const f of files) {
     try {
       const a = await leggiFile(f, societa);
+
+      /* Se qualche riga non ha il suffisso del sezionale si chiede, invece di
+         decidere al posto di chi importa. */
+      if (a.senzaSezionale) {
+        const noti = [...new Set(store.righe.filter(r => r.societa === societa).map(r => r.sezionale))].sort();
+        const suggerimento = noti.length ? `\n\nGià in uso per questa società: ${noti.join(', ')}` : '';
+        const risposta = prompt(
+          `${a.nomeFile}\n\n${num(a.senzaSezionale)} righe su ${num(a.righe.length)} non hanno il suffisso ` +
+          `del sezionale nel numero documento.\n\nA quale sezionale vanno attribuite?${suggerimento}\n\n` +
+          `Scrivi la lettera, oppure annulla per saltare il file.`, noti[0] || '');
+        const scelto = (risposta || '').trim().toUpperCase();
+        if (!scelto) {
+          errori.push(`<strong>${esc(a.nomeFile)}</strong>: importazione annullata, sezionale non indicato.`);
+          continue;
+        }
+        a.righe.forEach(r => { if (r.sezionale === SENZA_SEZIONALE) r.sezionale = scelto; });
+        a.sezionali = [...new Set(a.righe.map(r => r.sezionale))].sort();
+      }
+
+      /* Marchio ogni riga con il caricamento che l'ha portata: senza questa
+         traccia un import sbagliato si può correggere solo svuotando tutto. */
+      a.righe.forEach(r => { r.imp = a.caricatoIl; r.impFile = a.nomeFile; });
+
       const { nuove, aggiornate } = store.aggiungi(a);
       let m = `<strong>${esc(a.nomeFile)}</strong> → ${esc(SOCIETA[societa].nome)}: ${num(nuove)} nuove proforma`;
       if (aggiornate) m += `, ${num(aggiornate)} aggiornate`;
       m += ` · periodo ${dataIt(a.periodo.da)} – ${dataIt(a.periodo.a)} · sezionali ${a.sezionali.join(', ')}`;
+      if (a.senzaSezionale) m += ` · ${num(a.senzaSezionale)} righe attribuite manualmente`;
       if (a.scarti.length) m += ` · ${num(a.scarti.length)} righe scartate (${esc(a.scarti[0].motivo)})`;
       messaggi.push(m);
       stato.societa = societa;
