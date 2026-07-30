@@ -3,9 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Portale Incassi — Studi Riuniti &amp; TecnAccise</title>
+<title>Portale Incassi — ST Consulting &amp; Studio EC</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
   :root {
     --primary: #1a3a5c; --accent: #2e86de; --accent2: #f39c12; --accent3: #27ae60;
@@ -106,6 +109,25 @@
   .drop .small { font-size: .88rem; color: var(--muted); }
   .drop .mapping { margin-top: 14px; font-size: .82rem; color: var(--muted); }
 
+  .sel-soc { background: #eef4ff; border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 12px 16px; margin-bottom: 14px; }
+  .sel-soc label { display: block; font-size: .88rem; margin-bottom: 7px; }
+  .sel-soc select { min-width: 260px; }
+  .gate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px;
+          background: linear-gradient(150deg, var(--primary) 0%, #16304f 60%, #101f33 100%); }
+  /* Senza questa riga l'attributo hidden viene vinto dal display:grid e la
+     schermata, pur invisibile, continua a intercettare i clic. */
+  .gate[hidden] { display: none; }
+  .gate-box { width: 100%; max-width: 380px; background: #fff; border-radius: 14px; padding: 28px 28px 22px;
+              box-shadow: 0 24px 60px rgba(0,0,0,.3); }
+  .gate-marchio { font-size: 1.3rem; font-weight: 700; color: var(--primary); }
+  .gate-sotto { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent);
+                font-weight: 600; margin-bottom: 20px; }
+  .gate-campo { display: block; margin-bottom: 13px; }
+  .gate-campo span { display: block; font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+  .gate-campo input { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
+                      font-family: inherit; font-size: .95rem; }
+  .gate-nota { font-size: .78rem; color: var(--muted); margin-top: 14px; line-height: 1.5; }
+  .barra-utente { display: flex; align-items: center; gap: 10px; font-size: .8rem; }
   .vuoto { text-align: center; padding: 40px 20px; color: var(--muted); }
   input[type=search], select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: .87rem; background: #fff; color: var(--text); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -121,9 +143,23 @@
 </head>
 <body>
 
+<div id="gate" class="gate" hidden>
+  <form class="gate-box" id="gateForm">
+    <div class="gate-marchio">Portale Incassi</div>
+    <div class="gate-sotto">ST Consulting · Studio EC</div>
+    <label class="gate-campo"><span>Email</span>
+      <input type="email" id="gateEmail" autocomplete="username" required></label>
+    <label class="gate-campo"><span>Password</span>
+      <input type="password" id="gatePassword" autocomplete="current-password" required minlength="6"></label>
+    <div id="gateErrore"></div>
+    <button class="btn" id="gateBtn" style="width:100%;margin-top:6px">Entra</button>
+    <div class="gate-nota">L'accesso è riservato. Se non hai le credenziali, chiedile a chi amministra il portale.</div>
+  </form>
+</div>
+
 <header>
   <h1>Portale Incassi</h1>
-  <p>Analisi delle proforma, dei tempi di incasso e del comportamento dei clienti — Studi Riuniti e TecnAccise</p>
+  <p id="sottotitolo">Analisi delle proforma, dei tempi di incasso e del comportamento dei clienti</p>
   <div class="badges" id="badges"></div>
 </header>
 
@@ -135,14 +171,15 @@
   <div id="benvenuto">
     <div class="section">
       <h2>📂 Carica gli export del gestionale</h2>
+      <div class="sel-soc">
+        <label for="societaUpload"><strong>Ragione sociale</strong> — a quale studio appartiene questo export?</label>
+        <select id="societaUpload"></select>
+      </div>
       <div class="drop" id="drop" role="button" tabindex="0">
         <div class="big">Trascina qui i file, oppure fai clic per sceglierli</div>
         <div class="small">Formati accettati: .xlsx, .xls e .csv — puoi caricarne più di uno in una volta</div>
-        <div class="mapping">
-          Il sezionale viene letto dal numero documento:
-          <span class="tag tag-blue">C</span> <span class="tag tag-blue">P</span> <span class="tag tag-blue">D</span> → Studi Riuniti
-          &nbsp;·&nbsp; <span class="tag tag-green">T</span> → TecnAccise
-        </div>
+        <div class="mapping">Il sezionale si ricava dal numero documento (<code>860/C</code> → sezionale C)
+          e resta all'interno della ragione sociale scelta qui sopra.</div>
       </div>
       <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple hidden>
       <div id="esito"></div>
@@ -151,6 +188,7 @@
         browser e nulla viene inviato in rete. L'archivio viene conservato in locale, così alla riapertura
         ritrovi i dati senza ricaricarli. Ricaricando lo stesso periodo le righe non si duplicano: i documenti
         già presenti vengono aggiornati con le nuove date di incasso.
+        Le due ragioni sociali restano archivi separati e non vengono mai sommate fra loro.
       </div>
     </div>
   </div>
@@ -165,7 +203,7 @@
 </div>
 
 <footer>
-  Elaborazione locale · nessun dato lascia il browser · <span id="footer-info"></span>
+  <span id="footer-utente"></span><span id="footer-info"></span>
 </footer>
 
 <script>
@@ -210,8 +248,17 @@ const COLORE_ANNO = ['#2e86de', '#f39c12', '#27ae60', '#8e44ad', '#e74c3c'];
 /* =====================================================================
    2. LETTURA DEI FILE
    ===================================================================== */
-const SEZIONALI = { C: 'STUDIRIUNITI', P: 'STUDIRIUNITI', D: 'STUDIRIUNITI', T: 'TECNACCISE' };
-const ETICHETTA = { STUDIRIUNITI: 'Studi Riuniti', TECNACCISE: 'TecnAccise' };
+/* Ogni ragione sociale è un archivio a sé stante. I sezionali vivono dentro
+   la società, così due studi possono usare la stessa lettera senza che i
+   documenti si sovrappongano. La società si sceglie al caricamento: dedurla
+   dalla lettera del sezionale funzionerebbe solo finché le due anagrafiche
+   non usano le stesse. */
+const SOCIETA = {
+  ST: { nome: 'ST Consulting S.r.l. STP', breve: 'ST Consulting' },
+  EC: { nome: 'Studio EC',                breve: 'Studio EC' }
+};
+const CODICI_SOCIETA = Object.keys(SOCIETA);
+const ETICHETTA = Object.fromEntries(Object.entries(SOCIETA).map(([k, v]) => [k, v.breve]));
 
 const COLONNE_FISSE = ['CATEGORIA','N. DOC','DATA DOC.','DATA INCASSO','CLIENTE','IMPONIBILE','CASSA 4%',
   'IVA 22%','IVA 22% PER CASSA','SPESE ART.15','QUANTITÀ','TOTALE','PROVVIGIONI INTERMEDIARIO',
@@ -257,7 +304,7 @@ const clienteKey = (nome) => pulisci(nome).toUpperCase()
   .replace(/\bS\.?\s?A\.?\s?S\.?\b/g, 'SAS').replace(/\bS\.?\s?N\.?\s?C\.?\b/g, 'SNC')
   .replace(/[^A-Z0-9]+/g, ' ').trim();
 
-async function leggiFile(file) {
+async function leggiFile(file, societa) {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array', cellDates: true, raw: false });
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -273,7 +320,7 @@ async function leggiFile(file) {
   const iMax = Math.max(...Object.values(pos), -1);
   const colAtt = head.map((h, i) => ({ h, i })).filter(({ h, i }) => i > iMax && h !== '');
 
-  const righe = [], scarti = [], studi = new Set();
+  const righe = [], scarti = [], sezionali = new Set();
   let da = null, a = null;
 
   for (let r = iHead + 1; r < mat.length; r++) {
@@ -283,39 +330,65 @@ async function leggiFile(file) {
     if (!nDoc && !cliente) continue;
     if (!nDoc || !dDoc) { scarti.push({ riga: r + 1, motivo: 'numero documento o data mancante' }); continue; }
 
-    let sez = sezionaleDa(nDoc);
-    if (!sez) sez = chiave(v('CATEGORIA')).startsWith('TECNACCISE') ? 'T' : null;
-    if (!sez || !SEZIONALI[sez]) { scarti.push({ riga: r + 1, motivo: `sezionale non riconosciuto in "${nDoc}"` }); continue; }
+    // Il sezionale è il suffisso del numero documento. Se manca, la riga non
+    // si scarta: finisce in "ND" e resta visibile, così non sparisce in silenzio.
+    const sez = sezionaleDa(nDoc) || 'ND';
 
     const attivita = {};
     colAtt.forEach(({ h, i }) => { const n = numeroIt(riga[i]); if (n !== 0) attivita[h] = Math.round(n * 100) / 100; });
 
     const imponibile = numeroIt(v('IMPONIBILE'));
     righe.push({
-      studio: SEZIONALI[sez], sezionale: sez, n_doc: nDoc, data_doc: dDoc,
+      societa, sezionale: sez, n_doc: nDoc, data_doc: dDoc,
       data_incasso: dataIso(v('DATA INCASSO')), cliente, cliente_key: clienteKey(cliente),
       imponibile, cassa: numeroIt(v('CASSA 4%')),
       iva: numeroIt(v('IVA 22%')) + numeroIt(v('IVA 22% PER CASSA')),
       totale: numeroIt(v('TOTALE')) || imponibile,
       intermediario: pulisci(v('INTERMEDIARIO')) || null, attivita
     });
-    studi.add(SEZIONALI[sez]);
+    sezionali.add(sez);
     if (!da || dDoc < da) da = dDoc;
     if (!a || dDoc > a) a = dDoc;
   }
 
   if (!righe.length) throw new Error(`${file.name}: nessuna riga valida da importare.`);
-  return { nomeFile: file.name, righe, scarti, studi: [...studi], periodo: { da, a }, caricatoIl: new Date().toISOString() };
+  return { nomeFile: file.name, societa, righe, scarti, sezionali: [...sezionali].sort(),
+           periodo: { da, a }, caricatoIl: new Date().toISOString() };
 }
 
 /* =====================================================================
    3. ARCHIVIO LOCALE
    ===================================================================== */
-const CHIAVE_ARCHIVIO = 'portale-incassi-v1';
-const ID = (r) => `${r.studio}|${r.sezionale}|${r.n_doc}|${r.data_doc}`;
+const CHIAVE_ARCHIVIO = 'portale-incassi-v2';
+const ID = (r) => `${r.societa}|${r.sezionale}|${r.n_doc}|${r.data_doc}`;
+
+/* ---------------------------------------------------------------------
+   CONFIGURAZIONE FIREBASE
+   I valori vengono sostituiti con quelli del progetto reale. Non sono
+   segreti: la chiave identifica il progetto, non autorizza nulla. A
+   proteggere i dati sono le regole di sicurezza lato server, che
+   richiedono un utente autenticato.
+   --------------------------------------------------------------------- */
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyBDkgHlCyMYnvMN0-88uPazbKFIoM4B7hs',
+  authDomain: 'portale-incassi.firebaseapp.com',
+  projectId: 'portale-incassi',
+  storageBucket: 'portale-incassi.firebasestorage.app',
+  messagingSenderId: '747102811000',
+  appId: '1:747102811000:web:8657327ddf64cf0d600e8d'
+};
+
+const ONLINE = !FIREBASE_CONFIG.apiKey.startsWith('__');
+let db = null, auth = null, utente = null;
+
+/* L'archivio non si salva come un documento per proforma: sarebbero
+   migliaia di letture a ogni apertura. Si raggruppa invece per
+   società, anno e sezionale, che è anche il modo in cui i dati vengono
+   naturalmente caricati e consultati. */
+const BLOCCO = (r) => `${r.societa}_${r.anno_doc || r.data_doc.slice(0, 4)}_${r.sezionale}`;
 
 const store = {
-  righe: [], file: [], persistente: true,
+  righe: [], file: [], persistente: true, sincronizzato: false,
   carica() {
     try {
       const raw = localStorage.getItem(CHIAVE_ARCHIVIO);
@@ -326,23 +399,69 @@ const store = {
     try { localStorage.setItem(CHIAVE_ARCHIVIO, JSON.stringify({ righe: this.righe, file: this.file })); }
     catch (e) { this.persistente = false; }
   },
-  /* Upsert su (studio, sezionale, n. doc, data): ricaricare lo stesso
+
+  /* Scarica l'archivio condiviso. La copia locale resta come cache, così
+     l'app mostra qualcosa anche prima che la rete risponda. */
+  async scarica() {
+    if (!ONLINE || !utente) return;
+    const [blocchi, caricamenti] = await Promise.all([
+      db.collection('archivio').get(),
+      db.collection('caricamenti').orderBy('caricatoIl', 'desc').limit(80).get()
+    ]);
+    const righe = [];
+    blocchi.forEach(d => { const v = d.data(); if (Array.isArray(v.righe)) righe.push(...v.righe); });
+    this.righe = righe;
+    this.file = caricamenti.docs.map(d => d.data());
+    this.sincronizzato = true;
+    this.salva();
+  },
+
+  /* Riscrive solo i blocchi toccati dall'import. */
+  async sincronizza(bloccheModificati, schedaFile) {
+    if (!ONLINE || !utente) return;
+    const gruppi = {};
+    this.righe.forEach(r => {
+      const k = BLOCCO(r);
+      if (bloccheModificati.has(k)) (gruppi[k] ||= []).push(r);
+    });
+    const lotto = db.batch();
+    Object.entries(gruppi).forEach(([k, righe]) => {
+      lotto.set(db.collection('archivio').doc(k), {
+        righe, aggiornatoIl: new Date().toISOString(), aggiornatoDa: utente.email
+      });
+    });
+    lotto.set(db.collection('caricamenti').doc(), { ...schedaFile, caricatoDa: utente.email });
+    await lotto.commit();
+  },
+  /* Upsert su (società, sezionale, n. doc, data): ricaricare lo stesso
      periodo aggiorna le date di incasso senza creare doppioni. */
   aggiungi(analisi) {
     const idx = new Map(this.righe.map((r, i) => [ID(r), i]));
+    const blocchi = new Set();
     let nuove = 0, aggiornate = 0;
     analisi.righe.forEach(r => {
+      blocchi.add(BLOCCO(r));
       const i = idx.get(ID(r));
       if (i === undefined) { idx.set(ID(r), this.righe.push(r) - 1); nuove++; }
       else { this.righe[i] = r; aggiornate++; }
     });
-    this.file = this.file.filter(f => f.nomeFile !== analisi.nomeFile);
-    this.file.unshift({ nomeFile: analisi.nomeFile, righe: analisi.righe.length, studi: analisi.studi,
-                        periodo: analisi.periodo, caricatoIl: analisi.caricatoIl, scarti: analisi.scarti.length });
+    this.blocchiToccati = blocchi;
+    this.file = this.file.filter(f => !(f.nomeFile === analisi.nomeFile && f.societa === analisi.societa));
+    this.file.unshift({ nomeFile: analisi.nomeFile, societa: analisi.societa, righe: analisi.righe.length,
+                        sezionali: analisi.sezionali, periodo: analisi.periodo,
+                        caricatoIl: analisi.caricatoIl, scarti: analisi.scarti.length });
     this.salva();
     return { nuove, aggiornate };
   },
-  svuota() { this.righe = []; this.file = []; try { localStorage.removeItem(CHIAVE_ARCHIVIO); } catch (e) {} }
+  svuota() { this.righe = []; this.file = []; try { localStorage.removeItem(CHIAVE_ARCHIVIO); } catch (e) {} },
+  async svuotaOnline() {
+    if (!ONLINE || !utente) return;
+    const [a, c] = await Promise.all([db.collection('archivio').get(), db.collection('caricamenti').get()]);
+    const lotto = db.batch();
+    a.forEach(d => lotto.delete(d.ref));
+    c.forEach(d => lotto.delete(d.ref));
+    await lotto.commit();
+  }
 };
 
 /* =====================================================================
@@ -537,15 +656,27 @@ function movimenti(righe, a1, a2) {
 /* =====================================================================
    5. STATO E FILTRI
    ===================================================================== */
-const stato = { studio: 'TUTTI', sezionale: 'TUTTI', anno: 'TUTTI', tab: 'panoramica',
+const stato = { societa: null, sezionale: 'TUTTI', anno: 'TUTTI', tab: 'panoramica',
                 ordineClienti: 'imponibile', discClienti: true, filtroClienti: 'tutti', cerca: '' };
 let TUTTE = [], VISTE = [], REF = null;
 
+/* Le società restano archivi separati: non esiste una vista che le somma,
+   perché sono soggetti distinti e sommarli non vorrebbe dire nulla.
+   La "vista d'insieme" è quella su tutti i sezionali della stessa società. */
+function societaPresenti() {
+  return CODICI_SOCIETA.filter(c => store.righe.some(r => r.societa === c));
+}
+
 function ricalcola() {
-  REF = riferimento(store.righe);
-  TUTTE = prepara(store.righe, REF);
+  const presenti = societaPresenti();
+  if (!presenti.includes(stato.societa)) stato.societa = presenti[0] || null;
+
+  const dellaSocieta = store.righe.filter(r => r.societa === stato.societa);
+  // La data di riferimento è quella della società in esame: archivi aggiornati
+  // in momenti diversi non devono influenzarsi a vicenda sullo scaduto.
+  REF = riferimento(dellaSocieta.length ? dellaSocieta : store.righe);
+  TUTTE = prepara(dellaSocieta, REF);
   VISTE = TUTTE.filter(r =>
-    (stato.studio === 'TUTTI' || r.studio === stato.studio) &&
     (stato.sezionale === 'TUTTI' || r.sezionale === stato.sezionale) &&
     (stato.anno === 'TUTTI' || r.anno === +stato.anno));
 }
@@ -570,6 +701,10 @@ const legenda = { legend: { position: 'bottom', labels: { boxWidth: 10, usePoint
 /* =====================================================================
    7. COMPONENTI HTML
    ===================================================================== */
+const SELETTORE_SOCIETA = (id) => `<div class="sel-soc">
+  <label for="${id}"><strong>Ragione sociale</strong> — a quale studio appartiene questo export?</label>
+  <select id="${id}"></select></div>`;
+
 const kpi = (label, valore, sub, tono, delta) =>
   `<div class="kpi-card ${tono || ''}"><div class="kpi-label">${esc(label)}</div>
    <div class="kpi-value">${valore}</div>${sub ? `<div class="kpi-sub">${sub}</div>` : ''}${delta || ''}</div>`;
@@ -789,7 +924,7 @@ function rendiTempi() {
     h += `<div class="insight"><strong>Il divario fra le linee di servizio.</strong>
       <strong>${esc(migliore.nome)}</strong> rientra in ${dec(migliore.dso)} giorni con il ${pct(migliore.quotaAperta)} aperto,
       mentre <strong>${esc(peggiore.nome)}</strong> impiega ${dec(peggiore.dso)} giorni e lascia il
-      ${pct(peggiore.quotaAperta)} da incassare. Sono ${dec(peggiore.dso - migliore.dso)} giorni di differenza a parità di studio:
+      ${pct(peggiore.quotaAperta)} da incassare. Sono ${dec(peggiore.dso - migliore.dso)} giorni di differenza dentro lo stesso studio:
       il problema non è il cliente ricorrente, è la prestazione fatturata fuori dal ciclo di addebito automatico.</div>`;
   }
 
@@ -1141,43 +1276,75 @@ function rendiConfronto() {
 }
 
 function rendiArchivio() {
+  const tutteLeRighe = prepara(store.righe, riferimento(store.righe));
+
   let h = `<h2>📂 Archivio e caricamenti</h2>
     <div class="chart-card">
+      ${SELETTORE_SOCIETA('societaUpload2')}
       <div class="drop" id="drop2" role="button" tabindex="0">
         <div class="big">Aggiungi o aggiorna un export</div>
         <div class="small">.xlsx, .xls o .csv — anche più file insieme</div>
-        <div class="mapping">Sezionali <span class="tag tag-blue">C</span> <span class="tag tag-blue">P</span>
-          <span class="tag tag-blue">D</span> → Studi Riuniti &nbsp;·&nbsp;
-          <span class="tag tag-green">T</span> → TecnAccise</div>
+        <div class="mapping">Il file viene attribuito alla ragione sociale selezionata qui sopra;
+          il sezionale si ricava dal numero documento.</div>
       </div>
       <div id="esito2"></div>
     </div>`;
 
-  const perStudio = {};
-  TUTTE.forEach(r => { perStudio[r.studio] = (perStudio[r.studio] || 0) + 1; });
-  const perSez = {};
-  TUTTE.forEach(r => { perSez[r.sezionale] = (perSez[r.sezionale] || 0) + 1; });
+  // Riepilogo per ragione sociale: qui si guardano tutti gli archivi insieme,
+  // perché serve sapere cosa c'è dentro, non confrontare i due studi.
+  const perSocieta = CODICI_SOCIETA
+    .map(c => ({ codice: c, righe: tutteLeRighe.filter(r => r.societa === c) }))
+    .filter(x => x.righe.length);
 
   h += '<div class="kpi-grid" style="margin-top:20px">';
-  h += kpi('Proforma in archivio', num(TUTTE.length), `${num(store.file.length)} file importati`);
-  Object.entries(perStudio).forEach(([s, n]) => h += kpi(ETICHETTA[s], num(n), 'documenti', s === 'TECNACCISE' ? 'green' : ''));
-  h += kpi('Periodo coperto', `${dataIt(TUTTE.reduce((a, r) => r.data_doc < a ? r.data_doc : a, '9999-12-31')).slice(3)}`,
-           `fino al ${dataIt(REF)}`, 'orange');
+  h += kpi('Proforma in archivio', num(tutteLeRighe.length), `${num(store.file.length)} file importati`);
+  perSocieta.forEach((x, i) => {
+    const k = indicatori(x.righe);
+    const sez = [...new Set(x.righe.map(r => r.sezionale))].sort().join(' · ');
+    h += kpi(SOCIETA[x.codice].breve, num(x.righe.length),
+             `${euro(k.imponibile)} · sezionali ${sez}`, i === 0 ? '' : 'green');
+  });
   h += '</div>';
 
-  h += `<div class="chart-card"><h3>Documenti per sezionale</h3>` +
+  if (!perSocieta.length) {
+    h += '<div class="chart-card"><div class="vuoto"><p>Nessun dato in archivio.</p></div></div>';
+    $('#sez-archivio').innerHTML = h;
+    collegaDrop($('#drop2'), $('#esito2'), $('#societaUpload2'));
+    return;
+  }
+
+  // Dettaglio società × sezionale
+  const combinazioni = [];
+  perSocieta.forEach(x => {
+    [...new Set(x.righe.map(r => r.sezionale))].sort().forEach(sez => {
+      const rr = x.righe.filter(r => r.sezionale === sez);
+      const k = indicatori(rr);
+      combinazioni.push({ societa: x.codice, sezionale: sez, documenti: rr.length,
+        imponibile: k.imponibile, aperto: k.aperto, dso: k.dso, clienti: k.clienti,
+        da: rr.reduce((a, r) => r.data_doc < a ? r.data_doc : a, rr[0].data_doc),
+        a: rr.reduce((a, r) => r.data_doc > a ? r.data_doc : a, rr[0].data_doc) });
+    });
+  });
+
+  h += `<div class="chart-card"><h3>Sezionali per ragione sociale</h3>` +
     tabella([
-      { t: 'Sezionale', v: r => `<span class="tag ${SEZIONALI[r[0]] === 'TECNACCISE' ? 'tag-green' : 'tag-blue'}">${r[0]}</span>` },
-      { t: 'Studio', v: r => ETICHETTA[SEZIONALI[r[0]]] || '—' },
-      { t: 'Documenti', num: true, v: r => num(r[1]) },
-      { t: 'Imponibile', num: true, v: r => euro(somma(TUTTE.filter(x => x.sezionale === r[0]), x => x.imponibile)) }
-    ], Object.entries(perSez).sort()) + '</div>';
+      { t: 'Ragione sociale', v: r => esc(SOCIETA[r.societa].nome) },
+      { t: 'Sezionale', v: r => `<span class="tag ${r.societa === CODICI_SOCIETA[0] ? 'tag-blue' : 'tag-green'}">${esc(r.sezionale)}</span>` },
+      { t: 'Documenti', num: true, v: r => num(r.documenti) },
+      { t: 'Clienti', num: true, v: r => num(r.clienti) },
+      { t: 'Imponibile', num: true, v: r => euro(r.imponibile) },
+      { t: 'Aperto', num: true, v: r => r.aperto > 0 ? `<span style="color:var(--danger);font-weight:600">${euro(r.aperto)}</span>` : '—' },
+      { t: 'Tempo medio', num: true, v: r => gg(r.dso) },
+      { t: 'Periodo', v: r => `${dataIt(r.da)} – ${dataIt(r.a)}` }
+    ], combinazioni,
+    { nota: 'Ogni riga è un sezionale. La vista d\'insieme di una ragione sociale somma i suoi sezionali; le due ragioni sociali non vengono mai sommate fra loro.' }) + '</div>';
 
   h += `<div class="chart-card"><h3>File importati</h3>` +
     tabella([
       { t: 'File', v: f => esc(f.nomeFile) },
+      { t: 'Ragione sociale', v: f => esc(SOCIETA[f.societa]?.breve || f.societa || '—') },
       { t: 'Caricato il', v: f => new Date(f.caricatoIl).toLocaleString('it-IT') },
-      { t: 'Studi', v: f => (f.studi || []).map(s => `<span class="tag tag-grey">${ETICHETTA[s] || s}</span>`).join(' ') },
+      { t: 'Sezionali', v: f => (f.sezionali || []).map(x => `<span class="tag tag-grey">${esc(x)}</span>`).join(' ') },
       { t: 'Righe', num: true, v: f => num(f.righe) },
       { t: 'Periodo', v: f => `${dataIt(f.periodo?.da)} – ${dataIt(f.periodo?.a)}` },
       { t: 'Scartate', num: true, v: f => f.scarti ? `<span class="tag tag-orange">${num(f.scarti)}</span>` : '0' }
@@ -1190,10 +1357,14 @@ function rendiArchivio() {
      </div></div>`;
 
   $('#sez-archivio').innerHTML = h;
-  collegaDrop($('#drop2'), $('#esito2'));
+  collegaDrop($('#drop2'), $('#esito2'), $('#societaUpload2'));
   $('#svuota').addEventListener('click', () => {
-    if (!confirm('Questa operazione elimina tutte le proforma archiviate in questo browser. Procedere?')) return;
-    store.svuota(); avvia();
+    const dove = ONLINE ? 'dall\'archivio condiviso, per tutti gli utenti' : 'da questo browser';
+    if (!confirm(`Questa operazione elimina tutte le proforma ${dove}, di entrambe le ragioni sociali. Procedere?`)) return;
+    (async () => {
+      try { await store.svuotaOnline(); } catch (e) { alert('Errore durante la cancellazione online: ' + e.message); return; }
+      store.svuota(); avvia();
+    })();
   });
   $('#esportaTutto').addEventListener('click', () => esportaRighe());
 }
@@ -1219,11 +1390,12 @@ function esportaCsv(clienti) {
 }
 
 function esportaRighe() {
-  const r = [['Studio', 'Sezionale', 'N. doc.', 'Data documento', 'Data incasso', 'Giorni', 'Cliente',
+  const r = [['Ragione sociale', 'Sezionale', 'N. doc.', 'Data documento', 'Data incasso', 'Giorni', 'Cliente',
     'Imponibile', 'Cassa', 'IVA', 'Totale', 'Intermediario', 'Attività prevalente']];
-  TUTTE.forEach(x => {
+  // L'esportazione copre l'intero archivio, non solo la società a schermo.
+  prepara(store.righe, riferimento(store.righe)).forEach(x => {
     const voci = Object.entries(x.attivita || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-    r.push([ETICHETTA[x.studio], x.sezionale, x.n_doc, dataIt(x.data_doc), dataIt(x.data_incasso),
+    r.push([SOCIETA[x.societa].nome, x.sezionale, x.n_doc, dataIt(x.data_doc), dataIt(x.data_incasso),
       x.gg ?? '', x.cliente, x.imponibile.toFixed(2), x.cassa.toFixed(2), x.iva.toFixed(2),
       x.totale.toFixed(2), x.intermediario ?? '', voci[0]?.[0] ?? '']);
   });
@@ -1252,20 +1424,20 @@ function rendiTab() {
 }
 
 function rendiToolbar() {
-  const studi = [...new Set(TUTTE.map(r => r.studio))];
-  const sezDisp = [...new Set(TUTTE.filter(r => stato.studio === 'TUTTI' || r.studio === stato.studio).map(r => r.sezionale))].sort();
+  const presenti = societaPresenti();
+  const sezDisp = [...new Set(TUTTE.map(r => r.sezionale))].sort();
   const anni = anniDi(TUTTE).sort((a, b) => b - a);
 
   let h = '';
-  if (studi.length > 1) {
-    h += `<span class="filtro-label">Studio</span><div class="filtro" data-g="studio">
-      <button data-v="TUTTI" aria-pressed="${stato.studio === 'TUTTI'}">Entrambi</button>` +
-      studi.map(s => `<button data-v="${s}" aria-pressed="${stato.studio === s}">${ETICHETTA[s]}</button>`).join('') + '</div>';
+  if (presenti.length > 1) {
+    h += `<span class="filtro-label">Ragione sociale</span><div class="filtro" data-g="societa">` +
+      presenti.map(c => `<button data-v="${c}" aria-pressed="${stato.societa === c}"
+        title="${esc(SOCIETA[c].nome)}">${esc(SOCIETA[c].breve)}</button>`).join('') + '</div>';
   }
   if (sezDisp.length > 1) {
     h += `<span class="filtro-label">Sezionale</span><div class="filtro" data-g="sezionale">
-      <button data-v="TUTTI" aria-pressed="${stato.sezionale === 'TUTTI'}">Tutti</button>` +
-      sezDisp.map(s => `<button data-v="${s}" aria-pressed="${stato.sezionale === s}">${s}</button>`).join('') + '</div>';
+      <button data-v="TUTTI" aria-pressed="${stato.sezionale === 'TUTTI'}">Vista d'insieme</button>` +
+      sezDisp.map(s => `<button data-v="${s}" aria-pressed="${stato.sezionale === s}">${esc(s)}</button>`).join('') + '</div>';
   }
   if (anni.length > 1) {
     h += `<span class="filtro-label">Anno</span><div class="filtro" data-g="anno">
@@ -1273,7 +1445,8 @@ function rendiToolbar() {
       anni.map(a => `<button data-v="${a}" aria-pressed="${stato.anno === String(a)}">${a}</button>`).join('') + '</div>';
   }
   h += `<div class="spacer"></div>
-        <span class="kpi-sub">${num(VISTE.length)} proforma selezionate · dati al ${dataIt(REF)}</span>`;
+        <span class="kpi-sub">${stato.sezionale === 'TUTTI' ? 'Tutti i sezionali' : 'Sezionale ' + esc(stato.sezionale)}
+        · ${num(VISTE.length)} proforma · dati al ${dataIt(REF)}</span>`;
 
   const tb = $('#toolbar');
   tb.innerHTML = h;
@@ -1281,7 +1454,7 @@ function rendiToolbar() {
   tb.querySelectorAll('.filtro').forEach(f => f.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     stato[f.dataset.g] = b.dataset.v;
-    if (f.dataset.g === 'studio') stato.sezionale = 'TUTTI';
+    if (f.dataset.g === 'societa') { stato.sezionale = 'TUTTI'; stato.anno = 'TUTTI'; }
     ricalcola(); rendiToolbar(); mostra();
   }));
 }
@@ -1289,9 +1462,11 @@ function rendiToolbar() {
 function rendiBadge() {
   const anni = anniDi(TUTTE);
   const k = indicatori(TUTTE);
+  const sez = [...new Set(TUTTE.map(r => r.sezionale))].sort();
   let h = '';
   if (TUTTE.length) {
     h += `<span class="badge">${num(TUTTE.length)} proforma</span>`;
+    h += `<span class="badge">sezionali ${sez.join(' · ')}</span>`;
     h += `<span class="badge">${anni.join(' · ')}</span>`;
     h += `<span class="badge">${num(k.clienti)} clienti</span>`;
     h += `<span class="badge ok">${euro(k.imponibile)} di imponibile</span>`;
@@ -1300,7 +1475,17 @@ function rendiBadge() {
     h += `<span class="badge">Nessun dato caricato</span>`;
   }
   $('#badges').innerHTML = h;
+  const st = $('#sottotitolo');
+  st.textContent = stato.societa
+    ? `${SOCIETA[stato.societa].nome} — incassi, tempi di pagamento e clienti`
+    : 'Analisi delle proforma, dei tempi di incasso e del comportamento dei clienti';
   $('#footer-info').textContent = TUTTE.length ? `archivio aggiornato al ${dataIt(REF)}` : 'in attesa del primo caricamento';
+  $('#footer-utente').innerHTML = ONLINE && utente
+    ? `Accesso come <strong>${esc(utente.email)}</strong> · archivio condiviso ·
+       <a href="#" id="esci">esci</a> · `
+    : 'Elaborazione locale · nessun dato lascia il browser · ';
+  const esci = $('#esci');
+  if (esci) esci.addEventListener('click', (e) => { e.preventDefault(); auth.signOut(); location.reload(); });
 }
 
 function mostra() {
@@ -1317,31 +1502,54 @@ function mostra() {
 }
 
 /* ------------------------------- caricamento ------------------------- */
-function collegaDrop(zona, esito) {
+/* Il menu della ragione sociale si popola da SOCIETA: aggiungere uno studio
+   significa aggiungere una voce lì, non toccare l'interfaccia. */
+function popolaSelettore(sel) {
+  if (!sel) return;
+  sel.innerHTML = CODICI_SOCIETA.map(c =>
+    `<option value="${c}">${esc(SOCIETA[c].nome)}</option>`).join('');
+  sel.value = stato.societa || CODICI_SOCIETA[0];
+}
+
+function collegaDrop(zona, esito, sel) {
   if (!zona) return;
+  popolaSelettore(sel);
   const input = $('#file');
   const apri = () => input.click();
+  const scelta = () => (sel && sel.value) || stato.societa || CODICI_SOCIETA[0];
   zona.addEventListener('click', apri);
   zona.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apri(); } });
   zona.addEventListener('dragover', e => { e.preventDefault(); zona.classList.add('over'); });
   zona.addEventListener('dragleave', () => zona.classList.remove('over'));
-  zona.addEventListener('drop', e => { e.preventDefault(); zona.classList.remove('over'); importa([...e.dataTransfer.files], esito); });
-  input.onchange = e => { importa([...e.target.files], esito); e.target.value = ''; };
+  zona.addEventListener('drop', e => { e.preventDefault(); zona.classList.remove('over'); importa([...e.dataTransfer.files], esito, scelta()); });
+  input.onchange = e => { importa([...e.target.files], esito, scelta()); e.target.value = ''; };
 }
 
-async function importa(files, esito) {
+async function importa(files, esito, societa) {
   if (!files.length) return;
   esito.innerHTML = '<div class="insight">Lettura dei file in corso…</div>';
   let messaggi = [], errori = [];
   for (const f of files) {
     try {
-      const a = await leggiFile(f);
+      const a = await leggiFile(f, societa);
       const { nuove, aggiornate } = store.aggiungi(a);
-      let m = `<strong>${esc(a.nomeFile)}</strong>: ${num(nuove)} nuove proforma`;
+      let m = `<strong>${esc(a.nomeFile)}</strong> → ${esc(SOCIETA[societa].nome)}: ${num(nuove)} nuove proforma`;
       if (aggiornate) m += `, ${num(aggiornate)} aggiornate`;
-      m += ` · periodo ${dataIt(a.periodo.da)} – ${dataIt(a.periodo.a)} · ${a.studi.map(s => ETICHETTA[s]).join(', ')}`;
+      m += ` · periodo ${dataIt(a.periodo.da)} – ${dataIt(a.periodo.a)} · sezionali ${a.sezionali.join(', ')}`;
       if (a.scarti.length) m += ` · ${num(a.scarti.length)} righe scartate (${esc(a.scarti[0].motivo)})`;
       messaggi.push(m);
+      stato.societa = societa;
+      if (ONLINE) {
+        try {
+          await store.sincronizza(store.blocchiToccati, {
+            nomeFile: a.nomeFile, societa: a.societa, righe: a.righe.length,
+            sezionali: a.sezionali, periodo: a.periodo, caricatoIl: a.caricatoIl,
+            scarti: a.scarti.length
+          });
+        } catch (err) {
+          errori.push(`<strong>${esc(a.nomeFile)}</strong>: dati letti correttamente ma non salvati online (${esc(err.message)}). Restano su questo computer.`);
+        }
+      }
     } catch (e) { errori.push(`<strong>${esc(f.name)}</strong>: ${esc(e.message)}`); }
   }
   let h = '';
@@ -1359,9 +1567,60 @@ function avvia(tab) {
 }
 
 /* ------------------------------------------------------------- start -- */
-store.carica();
-collegaDrop($('#drop'), $('#esito'));
-avvia();
+/* --------------------------------------------------------------------
+   Accesso
+   Senza Firebase configurato l'app resta in modalità locale, così il file
+   funziona comunque anche solo aperto sul computer.
+   -------------------------------------------------------------------- */
+function mostraErroreAccesso(msg) {
+  $('#gateErrore').innerHTML = `<div class="err-box" style="margin:0 0 12px">${esc(msg)}</div>`;
+}
+
+function traduciErrore(codice, msg) {
+  if (/invalid-credential|wrong-password|user-not-found|invalid-login/.test(codice)) return 'Email o password non corrispondono.';
+  if (/too-many-requests/.test(codice)) return 'Troppi tentativi. Riprova fra qualche minuto.';
+  if (/network/.test(codice)) return 'Connessione assente: non riesco a raggiungere il server.';
+  if (/user-disabled/.test(codice)) return 'Questo accesso è stato disattivato.';
+  return msg || 'Accesso non riuscito.';
+}
+
+async function avviaConAccesso() {
+  store.carica();
+  collegaDrop($('#drop'), $('#esito'), $('#societaUpload'));
+
+  if (!ONLINE) { avvia(); return; }
+
+  firebase.initializeApp(FIREBASE_CONFIG);
+  auth = firebase.auth();
+  db = firebase.firestore();
+
+  $('#gateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const b = $('#gateBtn');
+    b.disabled = true; b.innerHTML = '<span class="caricando"></span>';
+    $('#gateErrore').innerHTML = '';
+    try {
+      await auth.signInWithEmailAndPassword($('#gateEmail').value.trim(), $('#gatePassword').value);
+    } catch (err) {
+      mostraErroreAccesso(traduciErrore(err.code || '', err.message));
+    } finally {
+      b.disabled = false; b.textContent = 'Entra';
+    }
+  });
+
+  auth.onAuthStateChanged(async (u) => {
+    utente = u;
+    $('#gate').hidden = !!u;
+    if (!u) { document.body.style.overflow = 'hidden'; return; }
+    document.body.style.overflow = '';
+    avvia();                       // mostra subito la copia locale
+    try { await store.scarica(); } // poi allinea con l'archivio condiviso
+    catch (err) { console.warn('Archivio online non raggiungibile:', err.message); }
+    avvia();
+  });
+}
+
+avviaConAccesso();
 </script>
 </body>
 </html>
