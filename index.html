@@ -134,10 +134,81 @@
 
   footer { text-align: center; padding: 24px 20px 40px; font-size: .8rem; color: var(--muted); }
 
+  /* ---------------------------- pannello di lettura ---------------------- */
+  .pannello { background: var(--card); border-radius: 12px; padding: 18px 20px; margin-bottom: 22px;
+              box-shadow: 0 2px 8px rgba(0,0,0,.06); border-top: 4px solid var(--primary); }
+  .overview { border-bottom: 1px solid var(--border); padding-bottom: 13px; margin-bottom: 4px; }
+  .ov-titolo { font-size: .78rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+               font-weight: 700; margin-bottom: 9px; }
+  .ov-dati { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: .87rem; color: var(--muted); }
+  .ov-dati b { color: var(--primary); font-size: 1.02rem; font-weight: 700; }
+  .ov-rosso b { color: var(--danger); }
+  .letture { display: grid; gap: 0; }
+  .lettura { border-left: 3px solid var(--accent); padding: 13px 0 13px 15px; margin-top: 13px;
+             font-size: .9rem; line-height: 1.62; background: none; border-radius: 0; }
+  .lettura + .lettura { border-top: 1px solid var(--border); }
+  .lettura strong:first-child { color: var(--primary); display: block; margin-bottom: 2px; }
+  .lettura.warn-box { border: 0; border-left: 3px solid var(--accent2); }
+  .lettura.warn-box strong:first-child { color: #b9770e; }
+  .lettura.evolution-box { border: 0; border-left: 3px solid var(--accent3); }
+  .lettura.evolution-box strong:first-child { color: #1a6b35; }
+  .lettura.insight { border: 0; border-left: 3px solid var(--accent); }
+
   @media (max-width: 900px) {
     header, nav.tabs, .toolbar { padding-left: 16px; padding-right: 16px; }
     .chart-row { grid-template-columns: 1fr; }
   }
+  /* ------------------------------- iPhone -------------------------------- */
+  @media (max-width: 520px) {
+    html { -webkit-text-size-adjust: 100%; }
+    body { font-size: 15px; }
+    header { padding: 18px 14px 14px; }
+    header h1 { font-size: 1.35rem; }
+    header p { font-size: .84rem; }
+    .badge { font-size: .72rem; padding: 2px 9px; }
+
+    /* Le schede scorrono orizzontalmente con inerzia, senza barra visibile. */
+    nav.tabs { padding: 0 8px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    nav.tabs::-webkit-scrollbar { display: none; }
+    nav.tabs button { padding: 13px 11px; font-size: .85rem; }
+
+    .toolbar { padding: 10px 14px; gap: 8px; }
+    .filtro button { padding: 9px 13px; font-size: .85rem; }   /* area toccabile */
+    .filtro-label { width: 100%; margin: 0; }
+
+    .container { padding: 16px 12px 50px; }
+    h2 { font-size: 1.12rem; margin-bottom: 14px; }
+    h3 { font-size: .82rem; }
+
+    .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kpi-card { padding: 13px 14px; border-left-width: 3px; }
+    .kpi-value { font-size: 1.28rem; }
+    .kpi-label { font-size: .68rem; letter-spacing: .04em; }
+    .kpi-sub { font-size: .72rem; }
+
+    .pannello { padding: 15px 16px; border-radius: 10px; }
+    .ov-dati { gap: 4px 14px; font-size: .82rem; }
+    .ov-dati b { font-size: .95rem; }
+    .lettura { font-size: .87rem; padding-left: 12px; }
+
+    .chart-card { padding: 15px 13px; border-radius: 10px; }
+    .chart-wrap { height: 230px; }
+    .chart-wrap-lg { height: 270px; }
+
+    /* Le tabelle restano leggibili scorrendo, senza rimpicciolire il testo
+       fino a renderlo inutile. */
+    .tab-scroll { margin: 0 -13px; padding: 0 13px; -webkit-overflow-scrolling: touch; }
+    table { font-size: .82rem; }
+    th { font-size: .68rem; padding: 8px 9px; }
+    td { padding: 9px 9px; }
+    .cliente-cell { max-width: 165px; }
+
+    .btn { padding: 11px 16px; }          /* pollice, non puntatore */
+    .drop { padding: 26px 14px; }
+    .sel-soc select, input[type=search], select { width: 100%; min-width: 0; font-size: 16px; }
+    /* 16px evita lo zoom automatico di Safari sui campi al focus. */
+  }
+
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -196,6 +267,7 @@
   <div class="section" id="sez-panoramica" hidden></div>
   <div class="section" id="sez-mensile" hidden></div>
   <div class="section" id="sez-tempi" hidden></div>
+  <div class="section" id="sez-credito" hidden></div>
   <div class="section" id="sez-clienti" hidden></div>
   <div class="section" id="sez-attivita" hidden></div>
   <div class="section" id="sez-confronto" hidden></div>
@@ -788,7 +860,42 @@ function tabella(colonne, righe, opts = {}) {
    arbitraria: se il dato non dice niente di rilevante, il riquadro non
    compare invece di riempirsi di ovvieta'.
    ===================================================================== */
-const box = (tipo, titolo, testo) => `<div class="${tipo}"><strong>${titolo}</strong> ${testo}</div>`;
+/* Le considerazioni non vengono più sparse fra i grafici: ogni sezione le
+   raccoglie in un pannello unico in testa, così si legge prima l'interpretazione
+   e poi si scende a cercare il dettaglio. box() accumula, il pannello stampa. */
+let LETTURE = [];
+const SEGNAPOSTO = '<!--LETTURE-->';
+const box = (tipo, titolo, testo) => { LETTURE.push({ tipo, titolo, testo }); return ''; };
+
+/* Sintesi del filtro attivo: presente in ogni sezione, così non serve
+   tornare in panoramica per sapere cosa si sta guardando. */
+function sintesiCorrente() {
+  const k = indicatori(VISTE);
+  const ambito = stato.sezionale === 'TUTTI'
+    ? 'tutti i sezionali'
+    : etichettaSez(stato.societa, stato.sezionale);
+  const periodo = stato.anno === 'TUTTI' ? anniDi(VISTE).join('–') : stato.anno;
+  return `<div class="overview">
+    <div class="ov-titolo">${esc(SOCIETA[stato.societa] ? SOCIETA[stato.societa].nome : '')} · ${esc(ambito)} · ${esc(periodo)}</div>
+    <div class="ov-dati">
+      <span><b>${euro(k.imponibile)}</b> imponibile</span>
+      <span><b>${num(k.documenti)}</b> proforma</span>
+      <span><b>${num(k.clienti)}</b> clienti</span>
+      <span><b>${pct(k.quotaIncassata)}</b> incassato</span>
+      <span><b>${gg(k.dso)}</b> tempo medio</span>
+      <span class="ov-rosso"><b>${euro(k.aperto)}</b> da incassare</span>
+    </div></div>`;
+}
+
+/* Sostituisce il segnaposto con il pannello e pubblica la sezione. */
+function pubblica(id, html) {
+  const voci = LETTURE.map(l => `<div class="lettura ${l.tipo}"><strong>${l.titolo}</strong> ${l.testo}</div>`).join('');
+  const pannello = `<section class="pannello">
+      ${sintesiCorrente()}
+      ${voci ? `<div class="letture">${voci}</div>` : ''}
+    </section>`;
+  document.getElementById('sez-' + id).innerHTML = html.replace(SEGNAPOSTO, pannello);
+}
 
 /* Quota di fatturato che arriva da prestazioni ricorrenti: e' la parte di
    ricavo su cui si puo' contare l'anno prossimo senza rivenderla. */
@@ -824,7 +931,7 @@ function rendiPanoramica() {
   const guadagno = (rid.senza.dso != null && rid.con.dso != null) ? rid.senza.dso - rid.con.dso : null;
   const topAperto = cl.filter(c => c.aperto > 0).sort((a, b) => b.aperto - a.aperto)[0];
 
-  let h = '<h2>📈 Riepilogo generale</h2><div class="kpi-grid">';
+  let h = '<h2>📈 Riepilogo generale</h2>' + SEGNAPOSTO + '<div class="kpi-grid">';
   h += kpi('Imponibile emesso', euro(k.imponibile), `${num(k.documenti)} proforma · ${num(k.clienti)} clienti`,
            '', p ? deltaHtml(variazione(u.imponibile, p.imponibile)) : '');
   h += kpi('Incassato', pct(k.quotaIncassata), `${euro(k.incassato)} su ${euro(k.imponibile)}`, 'green');
@@ -842,35 +949,32 @@ function rendiPanoramica() {
   if (p && u) {
     const cresce = variazione(u.imponibile, p.imponibile);
     const tempi = (u.dso != null && p.dso != null) ? u.dso - p.dso : null;
-    h += `<div class="insight"><strong>Confronto a parità di periodo.</strong> Dal 1° gennaio al ${dataIt(REF)},
+    h += box('insight', `Confronto a parità di periodo.`, `Dal 1° gennaio al ${dataIt(REF)},
       il ${u.anno} vale <strong>${euro(u.imponibile)}</strong> contro i ${euro(p.imponibile)} del ${p.anno}
       (${cresce == null ? '—' : (cresce > 0 ? '+' : '') + dec(cresce) + '%'}), con ${num(u.documenti)} proforma
       contro ${num(p.documenti)}. Il tempo medio di incasso è passato da <strong>${dec(p.dso)}</strong> a
       <strong>${dec(u.dso)} giorni</strong>.
       ${tempi == null ? '' : tempi < 0
         ? ' Volumi e circolante si muovono nella stessa direzione: è il segnale che la crescita non sta avvenendo a scapito della cassa.'
-        : ' I tempi si allungano insieme ai volumi: conviene verificare quali linee di attività stiano assorbendo cassa.'}
-      </div>`;
+        : ' I tempi si allungano insieme ai volumi: conviene verificare quali linee di attività stiano assorbendo cassa.'}`);
   }
 
   if (guadagno != null && guadagno > 3) {
-    h += `<div class="evolution-box"><strong>La leva più forte è il mandato RID.</strong>
-      Le proforma con addebito automatico rientrano in ${dec(rid.con.dso)} giorni e hanno solo il
+    h += box('evolution-box', `La leva più forte è il mandato RID.`, `Le proforma con addebito automatico rientrano in ${dec(rid.con.dso)} giorni e hanno solo il
       ${pct(rid.con.quotaAperta)} ancora aperto; quelle senza impiegano ${dec(rid.senza.dso)} giorni con il
       ${pct(rid.senza.quotaAperta)} aperto. A parità di importo il mandato vale circa
       <strong>${dec(guadagno)} giorni di circolante</strong>: estenderlo alle prestazioni annuali è
-      l'intervento con il ritorno più immediato.</div>`;
+      l'intervento con il ritorno più immediato.`);
   }
 
   if (oltre90 > 0) {
-    h += `<div class="warn-box"><strong>Dove si concentra il rischio.</strong>
-      ${euro(oltre90)} su ${num(doc90)} documenti superano i 90 giorni
+    h += box('warn-box', `Dove si concentra il rischio.`, `${euro(oltre90)} su ${num(doc90)} documenti superano i 90 giorni
       (importo medio ${euro2(oltre90 / Math.max(doc90, 1))}): a questi valori il recupero individuale è
       antieconomico e conviene un sollecito massivo automatizzato.
       ${topAperto ? `La posizione singola più pesante è <strong>${esc(topAperto.nome)}</strong> con
         ${euro(topAperto.aperto)} aperti${topAperto.apertoMax != null ? `, fino a ${num(topAperto.apertoMax)} giorni` : ''}.` : ''}
       ${critici.length ? ` I clienti con profilo critico sono ${num(critici.length)}, per
-        ${euro(somma(critici, c => c.aperto))} complessivi.` : ''}</div>`;
+        ${euro(somma(critici, c => c.aperto))} complessivi.` : ''}`);
   }
 
   // Concentrazione: dipendere da pochi nomi e' un rischio diverso dal ritardo.
@@ -907,7 +1011,7 @@ function rendiPanoramica() {
     <div class="chart-card"><h3>Anzianità del credito aperto</h3><div class="chart-wrap"><canvas id="gAnzianita"></canvas></div></div>
   </div>`;
 
-  $('#sez-panoramica').innerHTML = h;
+  pubblica('panoramica', h);
 
   disegna('gIncassato', { type: 'doughnut',
     data: { labels: ['Incassato', 'Ancora aperto'], datasets: [{ data: [k.incassato, k.aperto], backgroundColor: ['#27ae60', '#e74c3c'], borderWidth: 0 }] },
@@ -937,7 +1041,7 @@ function rendiMensile() {
   const totUltimo = somma(emesso[ultimo]);
   const proiezione = mesiAttivi ? totUltimo / mesiAttivi * 12 : null;
 
-  let h = `<h2>📅 Andamento mensile dell'imponibile</h2>
+  let h = `<h2>📅 Andamento mensile dell'imponibile</h2>${SEGNAPOSTO}
     <div class="chart-card"><h3>Imponibile emesso mese per mese (€ netti)</h3>
       <div class="chart-wrap-lg"><canvas id="gMese"></canvas></div></div>
     <div class="chart-row">
@@ -945,16 +1049,16 @@ function rendiMensile() {
       <div class="chart-card"><h3>Emesso e incassato per mese di competenza</h3><div class="chart-wrap"><canvas id="gEmInc"></canvas></div></div>
     </div>`;
 
-  h += `<div class="insight"><strong>Stagionalità.</strong> ` +
+  h += box('insight', `Stagionalità.`, `` +
     migliore.map(m => `Nel ${m.a} il mese più forte è stato <strong>${MESI[m.i]}</strong> (${euro(m.v)})`).join('; ') +
-    `. I picchi seguono il calendario degli adempimenti, quindi vanno letti come ricorrenze e non come variazioni di andamento.</div>`;
+    `. I picchi seguono il calendario degli adempimenti, quindi vanno letti come ricorrenze e non come variazioni di andamento.`);
 
   if (proiezione && mesiAttivi < 12) {
-    h += `<div class="evolution-box"><strong>Proiezione ${ultimo}.</strong> Con ${euro(totUltimo)} in
+    h += box('evolution-box', `Proiezione ${ultimo}.`, `Con ${euro(totUltimo)} in
       ${mesiAttivi} mesi di attività il ritmo è di circa ${euro(totUltimo / mesiAttivi)} al mese: a fine anno
       il valore atteso è intorno a <strong>${euro(proiezione)}</strong>, a parità di condizioni. È una
       proiezione lineare: non tiene conto della stagionalità dei mesi che mancano, che nei dati storici
-      pesano più della media.</div>`;
+      pesano più della media.`);
   }
 
   // Concentrazione stagionale: quanto del fatturato sta in pochi mesi.
@@ -981,7 +1085,7 @@ function rendiMensile() {
          : 'Nel periodo sono rientrati anche incassi riferiti a fatture precedenti, quindi la cassa ha recuperato arretrato.'}`);
   }
 
-  $('#sez-mensile').innerHTML = h;
+  pubblica('mensile', h);
 
   disegna('gMese', { type: 'bar',
     data: { labels: MESI, datasets: anni.map((a, i) => ({ label: String(a), data: emesso[a], backgroundColor: COLORE_ANNO[i % 5], borderRadius: 4 })) },
@@ -1015,7 +1119,7 @@ function rendiTempi() {
   const k = indicatori(VISTE);
   const aperte = VISTE.filter(r => !r.incassata).sort((a, b) => b.ggAperti - a.ggAperti);
 
-  let h = `<h2>⏱️ Analisi delle tempistiche di incasso</h2><div class="kpi-grid">`;
+  let h = `<h2>⏱️ Analisi delle tempistiche di incasso</h2>${SEGNAPOSTO}<div class="kpi-grid">`;
   h += kpi('Tempo medio ponderato', gg(k.dso), 'pesato sull\'imponibile di ogni documento');
   h += kpi('Tempo mediano', gg(k.dsoMediano), 'metà delle fatture rientra entro', 'green');
   h += kpi('Quota incassata', pct(k.quotaIncassata), 'sull\'imponibile del periodo', 'green');
@@ -1046,11 +1150,10 @@ function rendiTempi() {
   const peggiore = fam.filter(f => f.imponibile > somma(fam, x => x.imponibile) * .05).sort((a, b) => b.dso - a.dso)[0];
   const migliore = fam.filter(f => f.imponibile > somma(fam, x => x.imponibile) * .05).sort((a, b) => a.dso - b.dso)[0];
   if (peggiore && migliore && peggiore.nome !== migliore.nome) {
-    h += `<div class="insight"><strong>Il divario fra le linee di servizio.</strong>
-      <strong>${esc(migliore.nome)}</strong> rientra in ${dec(migliore.dso)} giorni con il ${pct(migliore.quotaAperta)} aperto,
+    h += box('insight', `Il divario fra le linee di servizio.`, `<strong>${esc(migliore.nome)}</strong> rientra in ${dec(migliore.dso)} giorni con il ${pct(migliore.quotaAperta)} aperto,
       mentre <strong>${esc(peggiore.nome)}</strong> impiega ${dec(peggiore.dso)} giorni e lascia il
       ${pct(peggiore.quotaAperta)} da incassare. Sono ${dec(peggiore.dso - migliore.dso)} giorni di differenza dentro lo stesso studio:
-      il problema non è il cliente ricorrente, è la prestazione fatturata fuori dal ciclo di addebito automatico.</div>`;
+      il problema non è il cliente ricorrente, è la prestazione fatturata fuori dal ciclo di addebito automatico.`);
   }
 
   // Media contro mediana: la distanza fra le due misura il peso della coda.
@@ -1101,7 +1204,7 @@ function rendiTempi() {
     ], aperte.slice(0, 60),
     { nota: aperte.length > 60 ? `Mostrate le 60 posizioni più vecchie su ${num(aperte.length)} totali.` : `${num(aperte.length)} posizioni aperte al ${dataIt(REF)}.` }) + '</div>';
 
-  $('#sez-tempi').innerHTML = h;
+  pubblica('tempi', h);
 
   disegna('gCurva', { type: 'line',
     data: { labels: tappe, datasets: anni.map((a, i) => ({ label: String(a),
@@ -1122,6 +1225,179 @@ function rendiTempi() {
       backgroundColor: ['#27ae60', '#16a085', '#2e86de', '#f39c12', '#e67e22', '#c0392b'], borderWidth: 0 }] },
     options: { maintainAspectRatio: false, cutout: '58%', plugins: { ...legenda,
       tooltip: { callbacks: { label: c => `${c.label}: ${euro(c.parsed)} · ${anz[c.dataIndex].documenti} doc.` } } } } });
+}
+
+function rendiCredito() {
+  const aperte = VISTE.filter(r => !r.incassata);
+  const totAperto = somma(aperte, r => r.imponibile);
+  const totLordo = somma(aperte, r => r.totale);
+
+  if (!aperte.length) {
+    $('#sez-credito').innerHTML = `<h2>💳 Credito aperto</h2>
+      <div class="chart-card"><div class="vuoto"><h3>Nessuna posizione aperta</h3>
+      <p>Tutto l'imponibile del periodo selezionato risulta incassato.</p></div></div>`;
+    return;
+  }
+
+  /* Anzianità media pesata sull'importo: dice da quanto tempo, in media,
+     è fermo un euro di credito. Diversa dalla media semplice, che darebbe
+     lo stesso peso a una fattura da 50 e a una da 10.000. */
+  const anzMedia = ponderata(aperte, r => r.ggAperti, r => r.imponibile);
+  const anz = anzianita(VISTE);
+  const oltre90 = somma(anz.slice(3), f => f.importo);
+  const doc90 = somma(anz.slice(3), f => f.documenti);
+  const clientiCoinvolti = new Set(aperte.map(r => r.cliente_key)).size;
+
+  // Esposizione per cliente
+  const perCliente = {};
+  aperte.forEach(r => {
+    const k = r.cliente_key;
+    if (!perCliente[k]) perCliente[k] = { nome: r.cliente, imponibile: 0, doc: 0, max: 0 };
+    perCliente[k].imponibile += r.imponibile;
+    perCliente[k].doc++;
+    if (r.ggAperti > perCliente[k].max) perCliente[k].max = r.ggAperti;
+    if (r.cliente.length > perCliente[k].nome.length) perCliente[k].nome = r.cliente;
+  });
+  const clienti = Object.values(perCliente).sort((a, b) => b.imponibile - a.imponibile);
+  const top15 = clienti.slice(0, 15);
+
+  // Esposizione per sezionale e per famiglia di prestazione
+  const perSez = {};
+  aperte.forEach(r => { perSez[r.sezionale] = (perSez[r.sezionale] || 0) + r.imponibile; });
+  const sezArr = Object.entries(perSez).sort((a, b) => b[1] - a[1]);
+
+  const famAperto = {};
+  aperte.forEach(r => {
+    const voci = Object.entries(r.attivita || {}).filter(([, v]) => v > 0);
+    if (!voci.length) return;
+    const k = famiglia(voci.sort((a, b) => b[1] - a[1])[0][0]);
+    famAperto[k] = (famAperto[k] || 0) + r.imponibile;
+  });
+  const famArr = Object.entries(famAperto).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  // Esposizione per mese di emissione
+  const perMese = {};
+  aperte.forEach(r => {
+    const k = `${r.anno}-${String(r.mese).padStart(2, '0')}`;
+    perMese[k] = (perMese[k] || 0) + r.imponibile;
+  });
+  const mesiArr = Object.entries(perMese).sort();
+
+  let h = `<h2>💳 Credito aperto</h2>${SEGNAPOSTO}<div class="kpi-grid">`;
+  h += kpi('Totale da incassare', euro(totAperto), `${euro(totLordo)} lordi · ${num(aperte.length)} documenti`, 'red');
+  h += kpi('Oltre 90 giorni', euro(oltre90), `${num(doc90)} documenti · ${pct(oltre90 / totAperto * 100)} dell'aperto`,
+           oltre90 > totAperto * 0.4 ? 'red' : 'orange');
+  h += kpi('Anzianità media', gg(anzMedia), 'pesata sull\'importo di ogni documento', anzMedia > 90 ? 'red' : 'orange');
+  h += kpi('Clienti coinvolti', num(clientiCoinvolti), `esposizione media ${euro(totAperto / clientiCoinvolti)}`);
+  h += '</div>';
+
+  h += `<div class="chart-row">
+    <div class="chart-card"><h3>Quanto è vecchio il credito</h3><div class="chart-wrap-lg"><canvas id="cAging"></canvas></div>
+      <div class="kpi-sub" style="margin-top:8px">La linea mostra la quota cumulata: dove sale piano, il credito ristagna.</div></div>
+    <div class="chart-card"><h3>Chi deve di più — top 15</h3><div class="chart-wrap-lg"><canvas id="cClienti"></canvas></div>
+      <div class="kpi-sub" style="margin-top:8px">Il colore indica l'anzianità della posizione più vecchia di quel cliente.</div></div>
+  </div>`;
+
+  h += `<div class="chart-row">
+    <div class="chart-card"><h3>Da quale sezionale</h3><div class="chart-wrap"><canvas id="cSez"></canvas></div></div>
+    <div class="chart-card"><h3>Da quale tipo di prestazione</h3><div class="chart-wrap"><canvas id="cFam"></canvas></div></div>
+  </div>`;
+
+  h += `<div class="chart-card"><h3>In quale mese è stato emesso ciò che non è ancora rientrato</h3>
+    <div class="chart-wrap"><canvas id="cMesi"></canvas></div>
+    <div class="kpi-sub" style="margin-top:8px">Le barre a destra sono normali: sono fatture recenti. Quelle a sinistra sono arretrato vero.</div></div>`;
+
+  // ---- letture ----
+  const q5 = somma(clienti.slice(0, 5), c => c.imponibile);
+  const q20 = somma(clienti.slice(0, 20), c => c.imponibile);
+  h += box('insight', 'Quanto è concentrato il credito.',
+    `I primi 5 debitori valgono ${euro(q5)}, cioè il ${pct(q5 / totAperto * 100)} di tutto l'aperto; i primi 20 arrivano al ${pct(q20 / totAperto * 100)}.
+     ${q5 / totAperto * 100 > 35
+       ? 'La concentrazione è alta, ed è una buona notizia dal punto di vista operativo: cinque telefonate coprono più di un terzo dell\'esposizione. Il recupero mirato qui rende molto più di una campagna generalizzata.'
+       : 'L\'esposizione è frammentata su molti nomi: nessuna singola azione sposta il totale in modo sensibile, e conviene lavorare per fasce di anzianità piuttosto che per cliente.'}`);
+
+  const recente = anz[0].importo + anz[1].importo;
+  h += box(oltre90 > totAperto * 0.4 ? 'warn-box' : 'evolution-box', 'Quanto è fisiologico e quanto no.',
+    `${euro(recente)} (${pct(recente / totAperto * 100)}) hanno meno di sessanta giorni: è il normale sfasamento fra fattura e incasso, non un problema.
+     Il credito che merita attenzione è quello oltre i novanta giorni, ${euro(oltre90)} su ${num(doc90)} documenti.
+     ${oltre90 > 0
+       ? `A un'anzianità media di ${dec(anzMedia)} giorni, ogni mese che passa riduce la probabilità di incasso spontaneo.
+          Per gli importi sotto la soglia di convenienza vale la pena decidere in anticipo una data oltre la quale si smette di inseguire.`
+       : 'Non c\'è arretrato oltre i novanta giorni: la gestione sta funzionando.'}`);
+
+  if (sezArr.length > 1) {
+    const [sezPeggio, valPeggio] = sezArr[0];
+    const impSez = somma(VISTE.filter(r => r.sezionale === sezPeggio), r => r.imponibile) || 1;
+    h += box('insight', 'Dove si concentra l\'esposizione.',
+      `Il sezionale <strong>${esc(nomeSez(stato.societa, sezPeggio))}</strong> da solo ha ${euro(valPeggio)} da incassare,
+       il ${pct(valPeggio / totAperto * 100)} del totale aperto. Rapportato al suo fatturato, significa che ne resta fuori il ${pct(valPeggio / impSez * 100)}.
+       Confronta questo valore con gli altri sezionali nella tabella: se uno solo sfora, il problema è nelle sue condizioni di incasso,
+       non nel portafoglio clienti dello studio.`);
+  }
+
+  h += `<div class="chart-card" style="margin-top:20px"><h3>Esposizione per cliente</h3>` +
+    tabella([
+      { t: 'Cliente', v: c => `<div class="cliente-cell" title="${esc(c.nome)}">${esc(c.nome)}</div>` },
+      { t: 'Documenti', num: true, v: c => num(c.doc) },
+      { t: 'Imponibile aperto', num: true, v: c => euro(c.imponibile) },
+      { t: 'Quota', num: true, v: c => `${pct(c.imponibile / totAperto * 100)} ${barra(c.imponibile / totAperto * 100 * 4, '#e74c3c')}` },
+      { t: 'Aperto da', num: true, v: c => `<span class="tag ${c.max > 180 ? 'tag-red' : c.max > 90 ? 'tag-orange' : 'tag-grey'}">${num(c.max)} gg</span>` }
+    ], clienti.slice(0, 60),
+    { nota: clienti.length > 60 ? `Mostrati i 60 clienti con esposizione maggiore su ${num(clienti.length)}.` : '' }) + '</div>';
+
+  pubblica('credito', h);
+
+  const colAnz = ['#27ae60', '#16a085', '#2e86de', '#f39c12', '#e67e22', '#c0392b'];
+  let cum = 0;
+  const cumulata = anz.map(f => { cum += f.importo; return cum / totAperto * 100; });
+  disegna('cAging', { type: 'bar',
+    data: { labels: anz.map(a => a.fascia), datasets: [
+      { data: anz.map(a => a.importo), backgroundColor: colAnz, borderRadius: 4, order: 2 },
+      { type: 'line', label: 'Quota cumulata', data: cumulata, borderColor: '#1a3a5c', borderWidth: 2,
+        pointRadius: 3, yAxisID: 'y2', order: 1 }] },
+    options: { maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eef1f6' } },
+                y2: { position: 'right', beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { display: false } },
+                x: { grid: { display: false } } },
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: c => c.datasetIndex === 1 ? 'Cumulata ' + pct(c.parsed.y) : `${euro(c.parsed.y)} · ${anz[c.dataIndex].documenti} doc.` } } } } });
+
+  disegna('cClienti', { type: 'bar',
+    data: { labels: top15.map(c => c.nome.length > 28 ? c.nome.slice(0, 28) + '…' : c.nome),
+      datasets: [{ data: top15.map(c => c.imponibile),
+        backgroundColor: top15.map(c => c.max > 180 ? '#c0392b' : c.max > 90 ? '#e67e22' : c.max > 30 ? '#f39c12' : '#2e86de'),
+        borderRadius: 4 }] },
+    options: { indexAxis: 'y', maintainAspectRatio: false,
+      scales: { x: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eef1f6' } },
+                y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: c => `${euro(c.parsed.x)} · ${top15[c.dataIndex].doc} doc. · fino a ${num(top15[c.dataIndex].max)} gg` } } } } });
+
+  disegna('cSez', { type: 'doughnut',
+    data: { labels: sezArr.map(([k]) => nomeSez(stato.societa, k)),
+      datasets: [{ data: sezArr.map(([, v]) => v), backgroundColor: PALETTE, borderWidth: 0 }] },
+    options: { maintainAspectRatio: false, cutout: '58%',
+      plugins: { ...legenda, tooltip: { callbacks: { label: c => `${euro(c.parsed)} · ${dec(c.parsed / totAperto * 100)}%` } } } } });
+
+  disegna('cFam', { type: 'bar',
+    data: { labels: famArr.map(([k]) => k.length > 26 ? k.slice(0, 26) + '…' : k),
+      datasets: [{ data: famArr.map(([, v]) => v), backgroundColor: PALETTE, borderRadius: 4 }] },
+    options: { indexAxis: 'y', maintainAspectRatio: false,
+      scales: { x: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eef1f6' } },
+                y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => euro(c.parsed.x) } } } } });
+
+  disegna('cMesi', { type: 'bar',
+    data: { labels: mesiArr.map(([k]) => `${MESI[+k.slice(5) - 1]} ${k.slice(2, 4)}`),
+      datasets: [{ data: mesiArr.map(([, v]) => v),
+        backgroundColor: mesiArr.map(([k]) => {
+          const eta = Math.round((new Date(REF) - new Date(k + '-15')) / 864e5);
+          return eta > 365 ? '#c0392b' : eta > 180 ? '#e67e22' : eta > 90 ? '#f39c12' : '#2e86de';
+        }), borderRadius: 3 }] },
+    options: { maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eef1f6' } },
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => euro(c.parsed.y) } } } } });
 }
 
 function rendiClienti() {
@@ -1155,7 +1431,7 @@ function rendiClienti() {
   const ritardo = cl.filter(c => c.dso != null && c.imponibile >= 1000).sort((a, b) => b.dso - a.dso).slice(0, 15);
   const maxDso = Math.max(...ritardo.map(c => c.dso), 1);
 
-  let h = `<h2>🔴 Clienti — chi paga bene e chi va sollecitato</h2><div class="kpi-grid">`;
+  let h = `<h2>🔴 Clienti — chi paga bene e chi va sollecitato</h2>${SEGNAPOSTO}<div class="kpi-grid">`;
   h += kpi('Clienti nel periodo', num(cl.length), euro(tot));
   h += kpi('Eccellenti e affidabili', num((conteggi['Eccellente'] || 0) + (conteggi['Affidabile'] || 0)), `su ${num(cl.length)} clienti`, 'green');
   h += kpi('Da monitorare', num(conteggi['Da monitorare'] || 0), 'pagano tardi o hanno esposizione', 'orange');
@@ -1169,13 +1445,12 @@ function rendiClienti() {
     </div></div>`;
 
   if (cronici.length || episodici.length) {
-    h += `<div class="warn-box"><strong>Ritardatari abituali o incidenti isolati.</strong>
-      ${num(cronici.length)} clienti hanno una mediana oltre i 30 giorni: pagano sistematicamente tardi e vanno
+    h += box('warn-box', `Ritardatari abituali o incidenti isolati.`, `${num(cronici.length)} clienti hanno una mediana oltre i 30 giorni: pagano sistematicamente tardi e vanno
       affrontati rivedendo le condizioni, possibilmente con mandato RID.
       Altri ${num(episodici.length)} hanno una media molto più alta della mediana: pagano bene, ma una singola
       posizione di importo elevato trascina il dato. Per questi basta chiudere l'eccezione — cambiare le
       condizioni sarebbe sproporzionato e rischierebbe di irritare un buon cliente.
-      ${cronici.length ? `<br>Cronici principali: ${cronici.slice(0, 5).map(c => `<strong>${esc(c.nome)}</strong> (${dec(c.dso)} gg)`).join(', ')}.` : ''}</div>`;
+      ${cronici.length ? `<br>Cronici principali: ${cronici.slice(0, 5).map(c => `<strong>${esc(c.nome)}</strong> (${dec(c.dso)} gg)`).join(', ')}.` : ''}`);
   }
 
   // Il rischio non sta nei clienti critici in sé, ma in quelli critici che pesano.
@@ -1243,7 +1518,7 @@ function rendiClienti() {
       ${visibili.length > 250 ? `<br>Mostrati i primi 250 clienti su ${num(visibili.length)} che corrispondono ai filtri.` : ''}
     </div></div>`;
 
-  $('#sez-clienti').innerHTML = h;
+  pubblica('clienti', h);
 
   $('#filtroClienti').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -1286,7 +1561,7 @@ function rendiAttivita() {
   const tot = somma(fam, f => f.importo) || 1;
   const a1 = anni[anni.length - 2], a2 = anni[anni.length - 1];
 
-  let h = `<h2>🏷️ Suddivisione per tipologia di attività</h2>
+  let h = `<h2>🏷️ Suddivisione per tipologia di attività</h2>${SEGNAPOSTO}
     <div class="chart-row">
       <div class="chart-card"><h3>Top 10 voci — quota % dell'imponibile</h3><div class="chart-wrap-lg"><canvas id="gTorta"></canvas></div></div>
       <div class="chart-card"><h3>Peso delle famiglie, anno per anno (%)</h3><div class="chart-wrap-lg"><canvas id="gFam"></canvas></div></div>
@@ -1295,11 +1570,10 @@ function rendiAttivita() {
 
   const prima = fam[0], seconde3 = somma(fam.slice(0, 3), f => f.quota);
   if (prima) {
-    h += `<div class="insight"><strong>Composizione del fatturato.</strong>
-      <strong>${esc(prima.nome)}</strong> vale il ${pct(prima.quota)} del totale (${euro(prima.importo)} su ${euro(tot)}).
+    h += box('insight', `Composizione del fatturato.`, `<strong>${esc(prima.nome)}</strong> vale il ${pct(prima.quota)} del totale (${euro(prima.importo)} su ${euro(tot)}).
       Le prime tre famiglie coprono <strong>${pct(seconde3)}</strong> del fatturato:
       ${seconde3 > 75 ? 'la base di ricavo è concentrata, quindi vale la pena presidiare le condizioni di rinnovo proprio su queste linee.'
-                      : 'la base di ricavo è distribuita su più linee di servizio, il che riduce l\'esposizione a una singola tipologia di incarico.'}</div>`;
+                      : 'la base di ricavo è distribuita su più linee di servizio, il che riduce l\'esposizione a una singola tipologia di incarico.'}`);
   }
 
   const colF = [
@@ -1350,7 +1624,7 @@ function rendiAttivita() {
        un calo fisiologico verrà letto come una perdita di clienti che non c'è stata.`);
   }
 
-  $('#sez-attivita').innerHTML = h;
+  pubblica('attivita', h);
 
   disegna('gTorta', { type: 'doughnut',
     data: { labels: top10.map(v => v.nome.length > 28 ? v.nome.slice(0, 28) + '…' : v.nome),
@@ -1411,16 +1685,16 @@ function rendiConfronto() {
     ['Credito ancora aperto', a => a.aperto, euro, true]
   ];
 
-  let h = `<h2>🔄 Confronto cross-anno</h2>
+  let h = `<h2>🔄 Confronto cross-anno</h2>${SEGNAPOSTO}
     <div style="margin-bottom:16px"><div class="filtro" id="filtroOmog">
       <button data-o="1" aria-pressed="${omogeneo}">Finestra omogenea (1 gen – ${dataIt(REF).slice(0, 5)})</button>
       <button data-o="0" aria-pressed="${!omogeneo}">Anni interi</button>
     </div></div>`;
 
   if (omogeneo) {
-    h += `<div class="warn-box"><strong>Perché la finestra omogenea.</strong> Confrontare un anno chiuso con
+    h += box('warn-box', `Perché la finestra omogenea.`, `Confrontare un anno chiuso con
       uno in corso gonfia il divario: qui entrambi gli esercizi sono tagliati alla stessa data, così i volumi
-      sono davvero comparabili.</div>`;
+      sono davvero comparabili.`);
   }
 
   h += '<div class="kpi-grid" style="margin-top:16px">';
@@ -1450,12 +1724,11 @@ function rendiConfronto() {
       nuovi ${num(mov.nuovi)} (${euro(mov.impNuovi)}) · non più attivi ${num(mov.persi)} (${euro(mov.impPersi)} nel ${a1.anno})</div>
     </div></div>`;
 
-  h += `<div class="evolution-box"><strong>Da dove arriva la crescita.</strong>
-    ${mov.impMantenuti > mov.impNuovi * 3
+  h += box('evolution-box', `Da dove arriva la crescita.`, `${mov.impMantenuti > mov.impNuovi * 3
       ? `Il ${pct(mov.impMantenuti / (a2.imponibile || 1) * 100)} del fatturato ${a2.anno} viene da clienti già attivi nel ${a1.anno}: la crescita è guidata dall'ampliamento del mandato sul portafoglio esistente, non dall'acquisizione.`
       : `L'acquisizione contribuisce in misura rilevante: ${euro(mov.impNuovi)} arrivano da ${num(mov.nuovi)} clienti nuovi.`}
     Il fatturato dei clienti non più attivi (${euro(mov.impPersi)}) va letto come base da recuperare più che come
-    perdita certa: molti rientrano con gli adempimenti annuali.</div>`;
+    perdita certa: molti rientrano con gli adempimenti annuali.`);
 
   // Scomposizione della crescita: piu' lavoro o lavoro pagato meglio?
   const dVol = variazione(a2.documenti, a1.documenti);
@@ -1509,7 +1782,7 @@ function rendiConfronto() {
           return va == null ? '—' : `<span class="tag ${va >= 0 ? 'tag-green' : 'tag-red'}">${va > 0 ? '+' : ''}${dec(va)}%</span>`; } }
     ], mix) + '</div>';
 
-  $('#sez-confronto').innerHTML = h;
+  pubblica('confronto', h);
 
   $('#filtroOmog').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -1681,6 +1954,7 @@ const TAB = [
   ['panoramica', '📈 Panoramica', rendiPanoramica],
   ['mensile', '📅 Andamento mensile', rendiMensile],
   ['tempi', '⏱️ Tempi di incasso', rendiTempi],
+  ['credito', '💳 Credito aperto', rendiCredito],
   ['clienti', '🔴 Clienti', rendiClienti],
   ['attivita', '🏷️ Attività', rendiAttivita],
   ['confronto', '🔄 Confronto cross-anno', rendiConfronto],
@@ -1769,6 +2043,7 @@ function mostra() {
   if (vuoto) return;
   const t = TAB.find(x => x[0] === stato.tab) || TAB[0];
   $('#sez-' + t[0]).hidden = false;
+  LETTURE = [];          // ogni sezione parte pulita
   t[2]();
   rendiTab();
   window.scrollTo({ top: 0, behavior: 'smooth' });
