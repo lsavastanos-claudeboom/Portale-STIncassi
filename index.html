@@ -258,6 +258,20 @@ const SOCIETA = {
   EC: { nome: 'Studio EC',                breve: 'Studio EC' }
 };
 const CODICI_SOCIETA = Object.keys(SOCIETA);
+
+/* Nomi dei sezionali. La lettera resta il codice tecnico — è quella che
+   compare nel numero documento — ma nell'interfaccia si legge il nome.
+   Un sezionale non elencato qui mostra semplicemente la propria lettera. */
+const NOMI_SEZIONALI = {
+  ST: { C: 'Studiriuniti', P: 'Paghe', D: 'Defina', T: 'TecnAccise' },
+  EC: { EC: 'Studio EC' }
+};
+const nomeSez = (societa, sez) =>
+  (NOMI_SEZIONALI[societa] && NOMI_SEZIONALI[societa][sez]) || sez;
+const etichettaSez = (societa, sez) => {
+  const n = nomeSez(societa, sez);
+  return n === sez ? sez : `${n} (${sez})`;
+};
 const ETICHETTA = Object.fromEntries(Object.entries(SOCIETA).map(([k, v]) => [k, v.breve]));
 
 const COLONNE_FISSE = ['CATEGORIA','N. DOC','DATA DOC.','DATA INCASSO','CLIENTE','IMPONIBILE','CASSA 4%',
@@ -1078,7 +1092,7 @@ function rendiTempi() {
   h += `<div class="chart-card" style="margin-top:20px"><h3>Posizioni ancora aperte (dalle più vecchie)</h3>` +
     tabella([
       { t: 'N. doc.', v: r => esc(r.n_doc) },
-      { t: 'Sez.', v: r => `<span class="tag tag-grey">${esc(r.sezionale)}</span>` },
+      { t: 'Sezionale', v: r => `<span class="tag tag-grey" title="${esc(r.sezionale)}">${esc(nomeSez(r.societa, r.sezionale))}</span>` },
       { t: 'Cliente', v: r => `<div class="cliente-cell" title="${esc(r.cliente)}">${esc(r.cliente)}</div>` },
       { t: 'Data', num: true, v: r => dataIt(r.data_doc) },
       { t: 'Imponibile', num: true, v: r => euro2(r.imponibile) },
@@ -1540,9 +1554,10 @@ function rendiArchivio() {
   h += kpi('Proforma in archivio', num(tutteLeRighe.length), `${num(store.file.length)} file importati`);
   perSocieta.forEach((x, i) => {
     const k = indicatori(x.righe);
-    const sez = [...new Set(x.righe.map(r => r.sezionale))].sort().join(' · ');
+    const sez = [...new Set(x.righe.map(r => r.sezionale))].sort()
+      .map(z => nomeSez(x.codice, z)).join(' · ');
     h += kpi(SOCIETA[x.codice].breve, num(x.righe.length),
-             `${euro(k.imponibile)} · sezionali ${sez}`, i === 0 ? '' : 'green');
+             `${euro(k.imponibile)} · ${esc(sez)}`, i === 0 ? '' : 'green');
   });
   h += '</div>';
 
@@ -1569,7 +1584,7 @@ function rendiArchivio() {
   h += `<div class="chart-card"><h3>Sezionali per ragione sociale</h3>` +
     tabella([
       { t: 'Ragione sociale', v: r => esc(SOCIETA[r.societa].nome) },
-      { t: 'Sezionale', v: r => `<span class="tag ${r.societa === CODICI_SOCIETA[0] ? 'tag-blue' : 'tag-green'}">${esc(r.sezionale)}</span>` },
+      { t: 'Sezionale', v: r => `<span class="tag ${r.societa === CODICI_SOCIETA[0] ? 'tag-blue' : 'tag-green'}" title="Codice ${esc(r.sezionale)}">${esc(nomeSez(r.societa, r.sezionale))}</span>` },
       { t: 'Documenti', num: true, v: r => num(r.documenti) },
       { t: 'Clienti', num: true, v: r => num(r.clienti) },
       { t: 'Imponibile', num: true, v: r => euro(r.imponibile) },
@@ -1584,7 +1599,7 @@ function rendiArchivio() {
       { t: 'File', v: f => esc(f.nomeFile) },
       { t: 'Ragione sociale', v: f => esc(SOCIETA[f.societa]?.breve || f.societa || '—') },
       { t: 'Caricato il', v: f => new Date(f.caricatoIl).toLocaleString('it-IT') },
-      { t: 'Sezionali', v: f => (f.sezionali || []).map(x => `<span class="tag tag-grey">${esc(x)}</span>`).join(' ') },
+      { t: 'Sezionali', v: f => (f.sezionali || []).map(x => `<span class="tag tag-grey" title="Codice ${esc(x)}">${esc(nomeSez(f.societa, x))}</span>`).join(' ') },
       { t: 'Righe', num: true, v: f => num(f.righe) },
       { t: 'Periodo', v: f => `${dataIt(f.periodo?.da)} – ${dataIt(f.periodo?.a)}` },
       { t: 'Scartate', num: true, v: f => f.scarti ? `<span class="tag tag-orange">${num(f.scarti)}</span>` : '0' },
@@ -1647,12 +1662,12 @@ function esportaCsv(clienti) {
 }
 
 function esportaRighe() {
-  const r = [['Ragione sociale', 'Sezionale', 'N. doc.', 'Data documento', 'Data incasso', 'Giorni', 'Cliente',
+  const r = [['Ragione sociale', 'Sezionale', 'Nome sezionale', 'N. doc.', 'Data documento', 'Data incasso', 'Giorni', 'Cliente',
     'Imponibile', 'Cassa', 'IVA', 'Totale', 'Intermediario', 'Attività prevalente']];
   // L'esportazione copre l'intero archivio, non solo la società a schermo.
   prepara(store.righe, riferimento(store.righe)).forEach(x => {
     const voci = Object.entries(x.attivita || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-    r.push([SOCIETA[x.societa].nome, x.sezionale, x.n_doc, dataIt(x.data_doc), dataIt(x.data_incasso),
+    r.push([SOCIETA[x.societa].nome, x.sezionale, nomeSez(x.societa, x.sezionale), x.n_doc, dataIt(x.data_doc), dataIt(x.data_incasso),
       x.gg ?? '', x.cliente, x.imponibile.toFixed(2), x.cassa.toFixed(2), x.iva.toFixed(2),
       x.totale.toFixed(2), x.intermediario ?? '', voci[0]?.[0] ?? '']);
   });
@@ -1694,7 +1709,8 @@ function rendiToolbar() {
   if (sezDisp.length > 1) {
     h += `<span class="filtro-label">Sezionale</span><div class="filtro" data-g="sezionale">
       <button data-v="TUTTI" aria-pressed="${stato.sezionale === 'TUTTI'}">Vista d'insieme</button>` +
-      sezDisp.map(s => `<button data-v="${s}" aria-pressed="${stato.sezionale === s}">${esc(s)}</button>`).join('') + '</div>';
+      sezDisp.map(s => `<button data-v="${s}" aria-pressed="${stato.sezionale === s}"
+        title="Sezionale ${esc(s)}">${esc(nomeSez(stato.societa, s))}</button>`).join('') + '</div>';
   }
   if (anni.length > 1) {
     h += `<span class="filtro-label">Anno</span><div class="filtro" data-g="anno">
@@ -1702,7 +1718,7 @@ function rendiToolbar() {
       anni.map(a => `<button data-v="${a}" aria-pressed="${stato.anno === String(a)}">${a}</button>`).join('') + '</div>';
   }
   h += `<div class="spacer"></div>
-        <span class="kpi-sub">${stato.sezionale === 'TUTTI' ? 'Tutti i sezionali' : 'Sezionale ' + esc(stato.sezionale)}
+        <span class="kpi-sub">${stato.sezionale === 'TUTTI' ? 'Tutti i sezionali' : esc(etichettaSez(stato.societa, stato.sezionale))}
         · ${num(VISTE.length)} proforma · dati al ${dataIt(REF)}</span>`;
 
   const tb = $('#toolbar');
@@ -1723,7 +1739,7 @@ function rendiBadge() {
   let h = '';
   if (TUTTE.length) {
     h += `<span class="badge">${num(TUTTE.length)} proforma</span>`;
-    h += `<span class="badge">sezionali ${sez.join(' · ')}</span>`;
+    h += `<span class="badge">${esc(sez.map(x => nomeSez(stato.societa, x)).join(' · '))}</span>`;
     h += `<span class="badge">${anni.join(' · ')}</span>`;
     h += `<span class="badge">${num(k.clienti)} clienti</span>`;
     h += `<span class="badge ok">${euro(k.imponibile)} di imponibile</span>`;
@@ -1794,7 +1810,9 @@ async function importa(files, esito, societa) {
          decidere al posto di chi importa. */
       if (a.senzaSezionale) {
         const noti = [...new Set(store.righe.filter(r => r.societa === societa).map(r => r.sezionale))].sort();
-        const suggerimento = noti.length ? `\n\nGià in uso per questa società: ${noti.join(', ')}` : '';
+        const suggerimento = noti.length
+          ? `\n\nGià in uso per questa società:\n${noti.map(x => `  ${x} = ${nomeSez(societa, x)}`).join('\n')}`
+          : '';
         const risposta = prompt(
           `${a.nomeFile}\n\n${num(a.senzaSezionale)} righe su ${num(a.righe.length)} non hanno il suffisso ` +
           `del sezionale nel numero documento.\n\nA quale sezionale vanno attribuite?${suggerimento}\n\n` +
@@ -1815,7 +1833,7 @@ async function importa(files, esito, societa) {
       const { nuove, aggiornate } = store.aggiungi(a);
       let m = `<strong>${esc(a.nomeFile)}</strong> → ${esc(SOCIETA[societa].nome)}: ${num(nuove)} nuove proforma`;
       if (aggiornate) m += `, ${num(aggiornate)} aggiornate`;
-      m += ` · periodo ${dataIt(a.periodo.da)} – ${dataIt(a.periodo.a)} · sezionali ${a.sezionali.join(', ')}`;
+      m += ` · periodo ${dataIt(a.periodo.da)} – ${dataIt(a.periodo.a)} · ${a.sezionali.map(x => etichettaSez(a.societa, x)).join(', ')}`;
       if (a.senzaSezionale) m += ` · ${num(a.senzaSezionale)} righe attribuite manualmente`;
       if (a.scarti.length) m += ` · ${num(a.scarti.length)} righe scartate (${esc(a.scarti[0].motivo)})`;
       messaggi.push(m);
