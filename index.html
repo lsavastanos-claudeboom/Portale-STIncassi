@@ -120,7 +120,7 @@
   .gate-box { width: 100%; max-width: 380px; background: #fff; border-radius: 14px; padding: 28px 28px 22px;
               box-shadow: 0 24px 60px rgba(0,0,0,.3); }
   .gate-marchio { font-size: 1.3rem; font-weight: 700; color: var(--primary); }
-  .gate-sotto { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent);
+  .gate-sotto { font-size: .78rem; font-style: italic; color: var(--accent);
                 font-weight: 600; margin-bottom: 20px; }
   .gate-campo { display: block; margin-bottom: 13px; }
   .gate-campo span { display: block; font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
@@ -162,19 +162,35 @@
   @media (max-width: 520px) {
     html { -webkit-text-size-adjust: 100%; }
     body { font-size: 15px; }
-    header { padding: 18px 14px 14px; }
-    header h1 { font-size: 1.35rem; }
-    header p { font-size: .84rem; }
-    .badge { font-size: .72rem; padding: 2px 9px; }
 
-    /* Le schede scorrono orizzontalmente con inerzia, senza barra visibile. */
+    /* La testata occupava metà schermo prima di mostrare un dato: qui si
+       comprime al minimo indispensabile, marchio e stato dell'archivio. */
+    header { padding: 12px 14px 10px; }
+    .marchio-riga { gap: 10px; }
+    .marchio-riga svg { width: 38px; height: 38px; }
+    .marchio-testo h1 { font-size: 1.32rem; }
+    .motto { font-size: .72rem; }
+    #sottotitolo { display: none; }   /* ripetuto nell'overview di ogni sezione */
+
+    /* I badge scorrono su una riga sola invece di impilarsi su tre. */
+    .badges { flex-wrap: nowrap; overflow-x: auto; margin-top: 9px; padding-bottom: 2px;
+              -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .badges::-webkit-scrollbar { display: none; }
+    .badge { font-size: .71rem; padding: 3px 9px; white-space: nowrap; flex: 0 0 auto; }
+
     nav.tabs { padding: 0 8px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
     nav.tabs::-webkit-scrollbar { display: none; }
-    nav.tabs button { padding: 13px 11px; font-size: .85rem; }
+    nav.tabs button { padding: 11px 10px; font-size: .82rem; }
 
-    .toolbar { padding: 10px 14px; gap: 8px; }
-    .filtro button { padding: 9px 13px; font-size: .85rem; }   /* area toccabile */
-    .filtro-label { width: 100%; margin: 0; }
+    /* I gruppi di filtri andavano oltre il bordo: ora vanno a capo. */
+    .toolbar { padding: 9px 12px; gap: 7px; }
+    .filtro { flex-wrap: wrap; width: 100%; }
+    /* 44px è la dimensione minima raccomandata per un bersaglio tattile. */
+    .filtro button { flex: 1 1 auto; padding: 11px 10px; font-size: .84rem;
+                     border-bottom: 1px solid var(--border); min-height: 44px; }
+    .filtro-label { display: none; }   /* i pulsanti si spiegano da soli */
+    .toolbar .kpi-sub { width: 100%; font-size: .74rem; }
+    .toolbar .spacer { display: none; }
 
     .container { padding: 16px 12px 50px; }
     h2 { font-size: 1.12rem; margin-bottom: 14px; }
@@ -183,8 +199,11 @@
     .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
     .kpi-card { padding: 13px 14px; border-left-width: 3px; }
     .kpi-value { font-size: 1.28rem; }
-    .kpi-label { font-size: .68rem; letter-spacing: .04em; }
-    .kpi-sub { font-size: .72rem; }
+    /* Sotto gli 11px la lettura al telefono diventa faticosa. */
+    .kpi-label { font-size: .72rem; letter-spacing: .03em; }
+    .kpi-sub { font-size: .76rem; }
+    .didascalia, .cap { font-size: .76rem; }
+    th { font-size: .72rem; }
 
     .pannello { padding: 15px 16px; border-radius: 10px; }
     .ov-dati { gap: 4px 14px; font-size: .82rem; }
@@ -199,11 +218,14 @@
        fino a renderlo inutile. */
     .tab-scroll { margin: 0 -13px; padding: 0 13px; -webkit-overflow-scrolling: touch; }
     table { font-size: .82rem; }
-    th { font-size: .68rem; padding: 8px 9px; }
+    th { padding: 9px 9px; }
     td { padding: 9px 9px; }
     .cliente-cell { max-width: 165px; }
 
     .btn { padding: 11px 16px; }          /* pollice, non puntatore */
+    /* Anche i filtri interni alle sezioni, non solo quelli della barra. */
+    .chart-card .filtro { flex-wrap: wrap; width: 100%; }
+    .chart-card .filtro button { flex: 1 1 40%; }
     .drop { padding: 26px 14px; }
     .sel-soc select, input[type=search], select { width: 100%; min-width: 0; font-size: 16px; }
     /* 16px evita lo zoom automatico di Safari sui campi al focus. */
@@ -217,7 +239,7 @@
 <div id="gate" class="gate" hidden>
   <form class="gate-box" id="gateForm">
     <div class="gate-marchio">Portale Incassi</div>
-    <div class="gate-sotto">ST Consulting · Studio EC</div>
+    <div class="gate-sotto">gli incassi, prima che diventino incazzi</div>
     <label class="gate-campo"><span>Email</span>
       <input type="email" id="gateEmail" autocomplete="username" required></label>
     <label class="gate-campo"><span>Password</span>
