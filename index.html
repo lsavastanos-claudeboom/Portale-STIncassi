@@ -769,6 +769,33 @@ function tabella(colonne, righe, opts = {}) {
 }
 
 /* =====================================================================
+   7-bis. LETTURE
+   Ogni commento nasce da un confronto fra numeri, non da una soglia
+   arbitraria: se il dato non dice niente di rilevante, il riquadro non
+   compare invece di riempirsi di ovvieta'.
+   ===================================================================== */
+const box = (tipo, titolo, testo) => `<div class="${tipo}"><strong>${titolo}</strong> ${testo}</div>`;
+
+/* Quota di fatturato che arriva da prestazioni ricorrenti: e' la parte di
+   ricavo su cui si puo' contare l'anno prossimo senza rivenderla. */
+function quotaRicorrente(righe) {
+  const f = ripartizione(righe, true);
+  const tot = somma(f, x => x.importo) || 1;
+  const ric = somma(f.filter(x => /Contabilità ricorrente|Adempimenti IVA periodici|Dichiarativi annuali/.test(x.nome)), x => x.importo);
+  return { quota: ric / tot * 100, ricorrente: ric, occasionale: tot - ric };
+}
+
+/* Famiglie che pesano molto e incassano male: sono quelle che assorbono
+   cassa, e vanno lette insieme perche' una da sola non basta a spiegare. */
+function assorbeCassa(righe) {
+  const fam = tempiPerFamiglia(righe);
+  const tot = somma(fam, f => f.imponibile) || 1;
+  return fam.map(f => ({ ...f, peso: f.imponibile / tot * 100, esposto: f.imponibile * f.quotaAperta / 100 }))
+            .filter(f => f.peso >= 5)
+            .sort((a, b) => b.esposto - a.esposto);
+}
+
+/* =====================================================================
    8. SEZIONI
    ===================================================================== */
 function rendiPanoramica() {
@@ -832,6 +859,35 @@ function rendiPanoramica() {
         ${euro(somma(critici, c => c.aperto))} complessivi.` : ''}</div>`;
   }
 
+  // Concentrazione: dipendere da pochi nomi e' un rischio diverso dal ritardo.
+  const perFatt = [...cl].sort((a, b) => b.imponibile - a.imponibile);
+  const totCl = somma(perFatt, c => c.imponibile) || 1;
+  const q = n => somma(perFatt.slice(0, n), c => c.imponibile) / totCl * 100;
+  const primo = perFatt[0];
+  if (primo) {
+    h += box('insight', 'Quanto pesano i primi clienti.',
+      `I primi 5 valgono il ${pct(q(5))} del fatturato, i primi 10 il ${pct(q(10))}, i primi 20 il ${pct(q(20))}.
+       Il cliente maggiore da solo vale ${pct(primo.imponibile / totCl * 100)} (${esc(primo.nome)}).
+       ${primo.imponibile / totCl * 100 > 12
+         ? 'È una dipendenza da tenere d\'occhio: perdere quel singolo rapporto lascerebbe un buco che nessun altro cliente copre.'
+         : q(10) > 55
+           ? 'Nessun nome è determinante da solo, ma la metà del fatturato sta in dieci rapporti: è su quelli che conviene presidiare rinnovi e condizioni.'
+           : 'La base è distribuita: nessun singolo rapporto è determinante, e questo riduce l\'esposizione a una disdetta.'}`);
+  }
+
+  // Ricorrente contro occasionale: dice quanta parte del fatturato si ripete.
+  const ric = quotaRicorrente(VISTE);
+  if (ric.ricorrente > 0) {
+    h += box('evolution-box', 'Quanta parte del fatturato si ripete.',
+      `${euro(ric.ricorrente)} arrivano da prestazioni ricorrenti — contabilità, adempimenti IVA, dichiarativi —
+       pari al ${pct(ric.quota)} del totale. Gli altri ${euro(ric.occasionale)} sono pratiche occasionali.
+       ${ric.quota > 70
+         ? 'Una base così ricorrente rende il fatturato prevedibile: la variabile da governare è il prezzo del rinnovo, non l\'acquisizione.'
+         : ric.quota > 45
+           ? 'La componente occasionale è consistente: una parte del fatturato va riconquistata ogni anno, e le previsioni vanno fatte su questa distinzione.'
+           : 'Il fatturato dipende in larga parte da pratiche una tantum, quindi va ricostruito ogni anno: è la situazione più esposta a un calo improvviso.'}`);
+  }
+
   h += `<div class="chart-row" style="margin-top:20px">
     <div class="chart-card"><h3>Composizione dell'imponibile</h3><div class="chart-wrap"><canvas id="gIncassato"></canvas></div></div>
     <div class="chart-card"><h3>Anzianità del credito aperto</h3><div class="chart-wrap"><canvas id="gAnzianita"></canvas></div></div>
@@ -885,6 +941,30 @@ function rendiMensile() {
       il valore atteso è intorno a <strong>${euro(proiezione)}</strong>, a parità di condizioni. È una
       proiezione lineare: non tiene conto della stagionalità dei mesi che mancano, che nei dati storici
       pesano più della media.</div>`;
+  }
+
+  // Concentrazione stagionale: quanto del fatturato sta in pochi mesi.
+  const ordinati = [...emesso[ultimo]].sort((a, b) => b - a);
+  const top3 = somma(ordinati.slice(0, 3));
+  if (totUltimo > 0) {
+    h += box('insight', 'Quanto è concentrato l\'anno.',
+      `I tre mesi migliori del ${ultimo} valgono ${euro(top3)}, cioè il ${pct(top3 / totUltimo * 100)} del fatturato di periodo.
+       ${top3 / totUltimo * 100 > 50
+         ? 'Metà del lavoro si concentra in tre mesi: il carico è sbilanciato, e i mesi di punta sono anche quelli in cui gli errori di fatturazione costano di più. Vale la pena verificare che l\'organico regga proprio lì.'
+         : 'La distribuzione è relativamente equilibrata, il che rende più gestibile sia il carico di lavoro sia il flusso di cassa.'}`);
+  }
+
+  // Scarto fra ciò che si fattura e ciò che rientra nello stesso periodo.
+  const totEm = anni.reduce((s2, a) => s2 + somma(emesso[a]), 0);
+  const totInc = anni.reduce((s2, a) => s2 + somma(incassato[a]), 0);
+  const ritardo = totEm - totInc;
+  if (totEm > 0) {
+    h += box(ritardo > totEm * 0.15 ? 'warn-box' : 'evolution-box', 'Emesso e incassato non coincidono.',
+      `Nel periodo osservato sono state emesse proforma per ${euro(totEm)} e ne sono rientrate ${euro(totInc)}:
+       la differenza è di ${euro(ritardo)}, pari al ${pct(Math.abs(ritardo) / totEm * 100)}.
+       ${ritardo > 0
+         ? 'È il capitale che lo studio sta anticipando: lavoro già svolto e fatturato, non ancora trasformato in cassa. Una parte è fisiologica e riguarda le emissioni più recenti, il resto è credito da sollecitare.'
+         : 'Nel periodo sono rientrati anche incassi riferiti a fatture precedenti, quindi la cassa ha recuperato arretrato.'}`);
   }
 
   $('#sez-mensile').innerHTML = h;
@@ -957,6 +1037,42 @@ function rendiTempi() {
       mentre <strong>${esc(peggiore.nome)}</strong> impiega ${dec(peggiore.dso)} giorni e lascia il
       ${pct(peggiore.quotaAperta)} da incassare. Sono ${dec(peggiore.dso - migliore.dso)} giorni di differenza dentro lo stesso studio:
       il problema non è il cliente ricorrente, è la prestazione fatturata fuori dal ciclo di addebito automatico.</div>`;
+  }
+
+  // Media contro mediana: la distanza fra le due misura il peso della coda.
+  if (k.dso != null && k.dsoMediano != null) {
+    const scarto = k.dso - k.dsoMediano;
+    /* Una soglia in giorni non basta: 6 contro 20 sono "solo" 14 giorni di
+       scarto, ma la media vale il triplo della mediana. Serve anche il
+       rapporto fra le due, altrimenti le code sui valori bassi sfuggono. */
+    const rapporto = k.dsoMediano > 0 ? k.dso / k.dsoMediano : (k.dso > 0 ? Infinity : 1);
+    const codaPesante = scarto > 15 || (scarto > 4 && rapporto >= 2);
+    h += box(codaPesante ? 'warn-box' : 'insight', 'Media e mediana raccontano cose diverse.',
+      `Metà delle fatture rientra entro ${dec(k.dsoMediano)} giorni, ma la media ponderata sull'importo è ${dec(k.dso)}${
+         rapporto >= 2 && isFinite(rapporto) ? `, cioè ${dec(rapporto)} volte tanto` : ''}.
+       ${codaPesante
+         ? `Il ritardo non è diffuso: è concentrato su poche posizioni di importo elevato.
+            Intervenire su quelle poche vale più di una stretta generalizzata sulle condizioni di pagamento, che infastidirebbe chi paga già bene.`
+         : scarto < -5
+           ? 'La media è più bassa della mediana: le fatture grandi rientrano prima delle piccole, segno che le posizioni importanti sono presidiate meglio.'
+           : 'Le due misure sono vicine: il comportamento di pagamento è omogeneo e non ci sono singole posizioni che distorcono il quadro.'}`);
+  }
+
+  // Peso della coda oltre 90 giorni sull'aperto complessivo.
+  const anzT = anzianita(VISTE);
+  const oltre90T = somma(anzT.slice(3), f => f.importo);
+  const doc90T = somma(anzT.slice(3), f => f.documenti);
+  const entro30T = anzT[0].importo;
+  if (k.aperto > 0) {
+    h += box(oltre90T > k.aperto * 0.4 ? 'warn-box' : 'insight', 'Com\'è fatto il credito aperto.',
+      `Dei ${euro(k.aperto)} ancora da incassare, ${euro(entro30T)} (${pct(entro30T / k.aperto * 100)}) hanno meno di trenta giorni
+       ed è circolante fisiologico legato alle emissioni recenti. Oltre i novanta giorni ci sono ${euro(oltre90T)}
+       su ${num(doc90T)} documenti, importo medio ${euro2(oltre90T / Math.max(doc90T, 1))}.
+       ${doc90T > 30 && oltre90T / Math.max(doc90T, 1) < 400
+         ? 'Sono molte posizioni di piccolo taglio: il recupero individuale costa più di quanto renda, e conviene un sollecito massivo automatizzato piuttosto che telefonate una per una.'
+         : oltre90T > 0
+           ? 'Sono poche posizioni ma di importo significativo: qui il recupero mirato ha senso, ed è il caso di stabilire una data oltre la quale si passa alla messa in mora formale.'
+           : 'Non c\'è arretrato oltre i novanta giorni: la gestione del credito sta funzionando.'}`);
   }
 
   h += `<div class="chart-card" style="margin-top:20px"><h3>Posizioni ancora aperte (dalle più vecchie)</h3>` +
@@ -1046,6 +1162,32 @@ function rendiClienti() {
       posizione di importo elevato trascina il dato. Per questi basta chiudere l'eccezione — cambiare le
       condizioni sarebbe sproporzionato e rischierebbe di irritare un buon cliente.
       ${cronici.length ? `<br>Cronici principali: ${cronici.slice(0, 5).map(c => `<strong>${esc(c.nome)}</strong> (${dec(c.dso)} gg)`).join(', ')}.` : ''}</div>`;
+  }
+
+  // Il rischio non sta nei clienti critici in sé, ma in quelli critici che pesano.
+  const primi10 = cl.slice(0, 10);
+  const criticiTop = primi10.filter(c => c.giudizio[1] === 'Critico' || c.giudizio[1] === 'Da monitorare');
+  const valoreBuoni = somma(cl.filter(c => c.punteggio >= 70), c => c.imponibile);
+  h += box(criticiTop.length ? 'warn-box' : 'evolution-box', 'Dove il ritardo fa davvero male.',
+    `Il ${pct(valoreBuoni / (tot || 1) * 100)} del fatturato viene da clienti con punteggio pari o superiore a 70,
+     quindi affidabili o eccellenti.
+     ${criticiTop.length
+       ? `Però fra i primi dieci clienti per fatturato ce ne sono ${num(criticiTop.length)} che pagano male:
+          ${criticiTop.map(c => `<strong>${esc(c.nome)}</strong> (${euro(c.imponibile)}, ${gg(c.dso)})`).join(', ')}.
+          Sono i casi da affrontare per primi: un ritardo su un cliente grande pesa sulla cassa molto più di dieci ritardi su clienti piccoli, e va trattato come una questione di condizioni contrattuali, non di sollecito.`
+       : 'Nessuno dei primi dieci clienti per fatturato ha problemi di pagamento: il ritardo, dove c\'è, riguarda posizioni marginali e incide poco sulla cassa complessiva.'}`);
+
+  // Clienti fermi da tempo: potenziale abbandono silenzioso.
+  const ultimoDoc = c => c.ultimo;
+  const soglia = new Date(new Date(REF).getTime() - 270 * 864e5).toISOString().slice(0, 10);
+  const dormienti = cl.filter(c => ultimoDoc(c) < soglia && c.imponibile >= 500);
+  if (dormienti.length) {
+    h += box('insight', 'Clienti fermi da oltre nove mesi.',
+      `${num(dormienti.length)} clienti con almeno 500 euro di storico non ricevono una proforma da più di nove mesi,
+       per un valore complessivo di ${euro(somma(dormienti, c => c.imponibile))}.
+       Non significa che siano persi — molti rientrano con i dichiarativi annuali — ma è la lista da cui partire
+       se si vuole capire se qualcuno se n'è andato senza dirlo. I principali:
+       ${dormienti.slice(0, 5).map(c => `<strong>${esc(c.nome)}</strong> (ultimo documento ${dataIt(c.ultimo)})`).join(', ')}.`);
   }
 
   h += `<div class="chart-card" style="margin-top:20px">
@@ -1169,6 +1311,31 @@ function rendiAttivita() {
   h += `<div class="chart-card"><h3>Dettaglio per singola voce</h3>${tabella(colV, voci.slice(0, 60),
     { nota: 'Le percentuali sono calcolate sui soli valori positivi delle colonne di dettaglio: le voci negative dell\'export sono storni e sconti, e falserebbero la composizione.' })}</div>`;
 
+  // Incrocio fra peso della famiglia e qualità dell'incasso.
+  const assorbe = assorbeCassa(VISTE);
+  if (assorbe.length) {
+    const peggio = assorbe[0];
+    const meglio = [...assorbe].sort((a, b) => a.quotaAperta - b.quotaAperta)[0];
+    h += box('warn-box', 'Quali attività immobilizzano cassa.',
+      `Non basta sapere quanto fattura una linea di servizio: conta anche quanto ci mette a rientrare.
+       <strong>${esc(peggio.nome)}</strong> vale il ${pct(peggio.peso)} del fatturato ma ha ancora il
+       ${pct(peggio.quotaAperta)} da incassare, cioè ${euro(peggio.esposto)} fermi, con un tempo medio di ${gg(peggio.dso)}.
+       All'estremo opposto <strong>${esc(meglio.nome)}</strong> rientra in ${gg(meglio.dso)} lasciando aperto solo il ${pct(meglio.quotaAperta)}.
+       Se la prima linea cresce senza cambiare le condizioni di pagamento, il circolante peggiora
+       automaticamente anche a fatturato costante.`);
+  }
+
+  // Voci una tantum di peso: fatturato che va riconquistato.
+  const unaTantum = voci.filter(v => /SPOT|ALTRE PRATICHE|MARCHIO|COSTITUZIONE|CESSIONE|ATECO/i.test(v.nome));
+  const valUnaTantum = somma(unaTantum, v => v.importo);
+  if (valUnaTantum > tot * 0.05) {
+    h += box('insight', 'Quanto fatturato non si ripete.',
+      `${euro(valUnaTantum)}, pari al ${pct(valUnaTantum / tot * 100)}, arriva da pratiche una tantum:
+       attività spot, costituzioni, marchi, adeguamenti straordinari.
+       È fatturato reale ma non ricorrente: nel confronto con l'anno prossimo va scorporato, altrimenti
+       un calo fisiologico verrà letto come una perdita di clienti che non c'è stata.`);
+  }
+
   $('#sez-attivita').innerHTML = h;
 
   disegna('gTorta', { type: 'doughnut',
@@ -1275,6 +1442,48 @@ function rendiConfronto() {
       : `L'acquisizione contribuisce in misura rilevante: ${euro(mov.impNuovi)} arrivano da ${num(mov.nuovi)} clienti nuovi.`}
     Il fatturato dei clienti non più attivi (${euro(mov.impPersi)}) va letto come base da recuperare più che come
     perdita certa: molti rientrano con gli adempimenti annuali.</div>`;
+
+  // Scomposizione della crescita: piu' lavoro o lavoro pagato meglio?
+  const dVol = variazione(a2.documenti, a1.documenti);
+  const dTicket = variazione(a2.ticket, a1.ticket);
+  const dTot = variazione(a2.imponibile, a1.imponibile);
+  if (dTot != null) {
+    h += box('insight', 'La crescita viene dai volumi o dai prezzi?',
+      `L'imponibile varia del ${dec(dTot)}%, scomponibile in ${dec(dVol)}% di documenti emessi e ${dec(dTicket)}% di valore medio per documento.
+       ${Math.abs(dVol) > Math.abs(dTicket) * 2
+         ? 'La variazione è quasi tutta di quantità: si fanno più pratiche allo stesso prezzo. È crescita che consuma tempo delle persone, quindi il limite arriverà dall\'organico prima che dal mercato.'
+         : Math.abs(dTicket) > Math.abs(dVol) * 2
+           ? 'La variazione è quasi tutta di valore medio: stesse pratiche, importi diversi. Può dipendere da un adeguamento tariffario o da un mix spostato verso incarichi più complessi — vale la pena distinguere quale, perché il primo si ripete e il secondo no.'
+           : 'Volumi e valore medio si muovono insieme, quindi la crescita è al tempo stesso di quantità e di qualità del lavoro.'}`);
+  }
+
+  // Il mix che si sposta: chi guadagna e chi perde terreno.
+  const conVar = mix.filter(m => m.prima > 0 || m.dopo > 0)
+    .map(m => ({ ...m, delta: m.qDopo - m.qPrima }))
+    .sort((a, b) => b.delta - a.delta);
+  if (conVar.length > 1) {
+    const su = conVar[0], giu = conVar[conVar.length - 1];
+    h += box('evolution-box', 'Dove si sta spostando il baricentro.',
+      `<strong>${esc(su.nome)}</strong> guadagna ${dec(su.delta)} punti di quota (dal ${dec(su.qPrima)}% al ${dec(su.qDopo)}%),
+       mentre <strong>${esc(giu.nome)}</strong> ne perde ${dec(Math.abs(giu.delta))} (dal ${dec(giu.qPrima)}% al ${dec(giu.qDopo)}%).
+       Le quote si muovono anche quando i valori assoluti crescono: una linea può aumentare di fatturato e perdere peso
+       perché le altre corrono di più. Guarda la colonna degli importi accanto a quella delle quote prima di trarre conclusioni.`);
+  }
+
+  // Ritenzione letta insieme al valore, non da sola.
+  if (mov.ritenzione != null) {
+    const valMedioMant = mov.mantenuti ? mov.impMantenuti / mov.mantenuti : 0;
+    const valMedioNuovi = mov.nuovi ? mov.impNuovi / mov.nuovi : 0;
+    h += box('insight', 'Che tipo di clienti stanno entrando.',
+      `I ${num(mov.mantenuti)} clienti confermati valgono in media ${euro(valMedioMant)} a testa,
+       i ${num(mov.nuovi)} nuovi ${euro(valMedioNuovi)}.
+       ${valMedioNuovi < valMedioMant * 0.6
+         ? 'I nuovi ingressi sono mediamente più piccoli di chi è già in portafoglio: utili come porta d\'accesso, ma non sostituiscono un cliente storico che se ne va. Per valutare la crescita conta più il valore che il numero.'
+         : valMedioNuovi > valMedioMant * 1.3
+           ? 'I nuovi clienti entrano con un valore medio superiore a quelli storici: l\'acquisizione sta portando incarichi più consistenti, ed è un segnale di posizionamento in miglioramento.'
+           : 'I nuovi clienti hanno un valore medio simile agli storici: l\'acquisizione replica il profilo del portafoglio esistente.'}
+       ${mov.persi ? `Nel frattempo ${num(mov.persi)} clienti non hanno ricevuto proforma nel ${a2.anno}, per ${euro(mov.impPersi)} fatturati nel ${a1.anno}.` : ''}`);
+  }
 
   h += `<div class="chart-card" style="margin-top:20px"><h3>Come si è spostato il mix</h3>` +
     tabella([
