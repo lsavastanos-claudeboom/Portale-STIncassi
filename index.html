@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>STIncassi — ST Consulting &amp; Studio EC</title>
 <meta name="description" content="Analisi degli incassi, dei tempi di pagamento e dei costi dello studio.">
-<meta name="theme-color" content="#2c5ca8">
+<meta name="theme-color" content="#0b4d7c">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'%3E%3Crect width='44' height='44' rx='11' fill='%232c5ca8'/%3E%3Ccircle cx='22' cy='22' r='11' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-dasharray='58 69' transform='rotate(-90 22 22)'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'%3E%3Crect width='44' height='44' rx='11' fill='%230b4d7c'/%3E%3Ccircle cx='22' cy='22' r='11' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-dasharray='58 69' transform='rotate(-90 22 22)'/%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -22,28 +22,31 @@
    per i numeri principali. Fondo chiaro, ombre morbide, angoli ampi.
    ===================================================================== */
 :root {
-  --sfondo:      #f6f6f4;
+  /* Valori presi dal portale Agone ToDo, così i due applicativi
+     dello studio parlano la stessa lingua. */
+  --sfondo:      #f1f3f6;
   --carta:       #ffffff;
-  --inchiostro:  #17181a;
-  --testo:       #45474c;
-  --tenue:       #83858c;
-  --bordo:       #e7e6e2;
-  --bordo-forte: #d8d7d2;
+  --inchiostro:  #101418;
+  --testo:       #4c545c;
+  --tenue:       #7f868f;
+  --bordo:       #dee3e9;
+  --bordo-forte: #cbd3dd;
 
-  /* Un accento solo. Verde, ambra e rosso non decorano: dicono uno stato. */
-  --blu:      #2c5ca8;
-  --blu-cupo: #1c3c6e;
-  --acqua:    #4a8f86;
-  --rosa:     #a34440;
-  --viola:    #6a6f96;
-  --ambra:    #96701f;
-  --verde:    #2f7a5f;
-  --rosso:    #a34440;
-  --tinta:    #f1f1ee;
+  --blu:      #0b4d7c;
+  --blu-cupo: #083b5f;
+  --acqua:    #3f7fa8;
+  --rosa:     #b04434;
+  --viola:    #5d6f84;
+  --ambra:    #a8741a;
+  --verde:    #14795e;
+  --rosso:    #b04434;
+  --tinta:    #eef1f4;
 
-  --r-xl: 14px; --r-lg: 12px; --r-md: 9px; --r-sm: 7px;
-  --ombra:    0 1px 2px rgba(23,24,26,.04);
-  --ombra-lg: 0 1px 3px rgba(23,24,26,.06), 0 8px 24px rgba(23,24,26,.06);
+  --display: 'Bricolage Grotesque', Manrope, system-ui, sans-serif;
+
+  --r-xl: 20px; --r-lg: 16px; --r-md: 11px; --r-sm: 9px;
+  --ombra:    0 1px 2px rgba(11,77,124,.05);
+  --ombra-lg: 0 1px 2px rgba(11,77,124,.05), 0 10px 30px rgba(11,77,124,.08);
   --lato: 250px;
 }
 
@@ -51,10 +54,10 @@
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; background: var(--sfondo); color: var(--testo);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  font-size: 14.5px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, -apple-system, sans-serif;
+  font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased;
 }
-h1, h2, h3, h4 { color: var(--inchiostro); margin: 0; font-weight: 600; letter-spacing: -.015em; }
+h1, h2, h3, h4 { color: var(--inchiostro); margin: 0; font-family: var(--display); font-weight: 700; letter-spacing: -.01em; }
 a { color: var(--blu); }
 :focus-visible { outline: 2px solid var(--blu); outline-offset: 2px; }
 
@@ -93,7 +96,8 @@ a { color: var(--blu); }
 
 .nav { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; }
 .nav-gruppo {
-  font-size: .76rem; font-weight: 400; color: var(--tenue); padding: 16px 11px 6px;
+  font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--tenue); padding: 18px 11px 7px;
 }
 .nav button {
   display: flex; align-items: center; gap: 11px; width: 100%;
@@ -101,10 +105,10 @@ a { color: var(--blu); }
   padding: 10px 11px; font: inherit; font-size: .89rem; color: var(--testo);
   cursor: pointer; text-align: left; transition: background .15s, color .15s;
 }
-.nav button:hover { background: #f1f1ee; color: var(--inchiostro); }
+.nav button:hover { background: #eef1f4; color: var(--inchiostro); }
 .nav button svg { flex: 0 0 18px; }
 .nav button[aria-selected="true"] {
-  background: var(--blu); color: #fff; font-weight: 500;
+  background: var(--blu); color: #fff; font-weight: 600;
 }
 .nav button[aria-selected="true"] svg { stroke: #fff; }
 
@@ -120,7 +124,7 @@ a { color: var(--blu); }
 }
 .cima-riga { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; flex-wrap: wrap; }
 .cima h2 { font-size: 1.28rem; }
-.cima .occhiello { font-size: .8rem; font-weight: 400; color: var(--tenue); margin-bottom: 3px; }
+.cima .occhiello { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--tenue); margin-bottom: 4px; }
 .badges { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
 .badge {
   font-size: .76rem; font-weight: 400; padding: 3px 0; color: var(--tenue);
@@ -136,15 +140,15 @@ a { color: var(--blu); }
   padding-bottom: 15px; margin-bottom: 15px; border-bottom: 1px solid var(--bordo);
 }
 .filtri:empty { display: none; }
-.filtro { display: inline-flex; background: var(--tinta); border-radius: var(--r-md); padding: 2px; }
+.filtro { display: inline-flex; background: var(--tinta); border-radius: 999px; padding: 3px; }
 .filtro button {
-  border: 0; background: none; border-radius: var(--r-sm); padding: 7px 13px;
-  font: inherit; font-size: .82rem; color: var(--testo); cursor: pointer; white-space: nowrap;
+  border: 0; background: none; border-radius: 999px; padding: 6px 14px;
+  font: inherit; font-size: 13px; color: var(--testo); cursor: pointer; white-space: nowrap;
   transition: background .15s, color .15s;
 }
 .filtro button:hover { color: var(--inchiostro); }
-.filtro button[aria-pressed="true"] { background: var(--carta); color: var(--inchiostro); font-weight: 500; box-shadow: var(--ombra); }
-.filtro-label { font-size: .78rem; font-weight: 400; color: var(--tenue); }
+.filtro button[aria-pressed="true"] { background: var(--blu); color: #fff; font-weight: 600; }
+.filtro-label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--tenue); }
 .spacer { flex: 1; }
 
 .container { padding: 24px 28px 60px; max-width: 1380px; }
@@ -164,8 +168,8 @@ a { color: var(--blu); }
 .kpi-card.orange .kpi-value { color: var(--ambra); }
 .kpi-card.red    .kpi-value { color: var(--rosso); }
 .kpi-testo { min-width: 0; }
-.kpi-label { font-size: .78rem; font-weight: 400; color: var(--tenue); }
-.kpi-value { font-size: 1.55rem; font-weight: 500; color: var(--inchiostro); line-height: 1.2; margin-top: 2px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.kpi-label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--tenue); }
+.kpi-value { font-family: var(--display); font-size: 1.75rem; font-weight: 700; color: var(--inchiostro); line-height: 1.15; margin-top: 3px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .kpi-sub { font-size: .76rem; color: var(--tenue); margin-top: 2px; }
 .delta { font-size: .76rem; font-weight: 700; margin-top: 4px; }
 .delta.up { color: var(--verde); } .delta.down { color: var(--rosso); } .delta.neu { color: var(--ambra); }
@@ -181,8 +185,8 @@ a { color: var(--blu); }
 .fascia.rosa  .fascia-valore { color: var(--rosso); }
 .fascia.ambra .fascia-valore { color: var(--ambra); }
 .fascia-icona { display: none; }
-.fascia-label { font-size: .78rem; font-weight: 500; color: var(--tenue); }
-.fascia-valore { font-size: 1.62rem; font-weight: 500; line-height: 1.15; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.fascia-label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--tenue); }
+.fascia-valore { font-family: var(--display); font-size: 1.75rem; font-weight: 700; line-height: 1.15; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .fascia-sub { font-size: .74rem; opacity: .85; margin-top: 1px; }
 
 .chart-card { background: var(--carta); border-radius: var(--r-lg); padding: 20px 22px; box-shadow: var(--ombra); margin-bottom: 18px; }
@@ -194,18 +198,17 @@ a { color: var(--blu); }
 /* -------------------------------------- pannello di lettura e overview */
 .pannello { background: var(--carta); border: 1px solid var(--bordo); border-radius: var(--r-xl); padding: 20px 24px; margin-bottom: 22px; box-shadow: none; }
 .overview { border-bottom: 1px solid var(--bordo); padding-bottom: 15px; margin-bottom: 3px; }
-.ov-titolo { font-size: .8rem; font-weight: 400; color: var(--tenue); margin-bottom: 11px; }
+.ov-titolo { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--tenue); margin-bottom: 12px; }
 .ov-dati { display: flex; flex-wrap: wrap; gap: 8px 26px; font-size: .84rem; color: var(--tenue); }
-.ov-dati b { color: var(--inchiostro); font-size: 1.06rem; font-weight: 500; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.ov-dati b { color: var(--inchiostro); font-family: var(--display); font-size: 1.1rem; font-weight: 700; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
 .ov-rosso b { color: var(--rosso); }
 
 .letture { display: grid; gap: 0; }
 .lettura { padding: 18px 0 4px; border-left: 0; }
 .lettura + .lettura { border-top: 1px solid var(--bordo); }
 .lettura-voce {
-  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
-  font-size: 1.16rem; line-height: 1.42; font-weight: 400;
-  color: var(--inchiostro); margin: 0 0 7px; max-width: 62ch;
+  font-family: var(--display); font-size: 1.1rem; line-height: 1.38; font-weight: 700;
+  letter-spacing: -.01em; color: var(--inchiostro); margin: 0 0 7px; max-width: 62ch;
 }
 .lettura-corpo {
   font-size: .88rem; line-height: 1.68; color: var(--testo); margin: 0;
@@ -242,14 +245,14 @@ th.num, td.num { text-align: right; }
 th.sortable { cursor: pointer; user-select: none; }
 th.sortable:hover { color: var(--blu); }
 td { padding: 11px 12px; border-bottom: 1px solid var(--bordo); }
-tbody tr:hover { background: #faf9f7; }
+tbody tr:hover { background: #f7f9fb; }
 td.num { font-variant-numeric: tabular-nums; }
 .cliente-cell { max-width: 290px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--inchiostro); }
 
 .tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .73rem; font-weight: 600; white-space: nowrap; }
-.tag-red    { background: #f7ecec; color: #c32d3c; }
-.tag-orange { background: #f5f0e3; color: #7d5f18; }
-.tag-green  { background: #e2f8ef; color: #2f7a5f; }
+.tag-red    { background: #f8ecea; color: #c32d3c; }
+.tag-orange { background: #f7efdf; color: #8c6115; }
+.tag-green  { background: #e7eef4; color: #0b4d7c; }
 .tag-blue   { background: #e8f0fe; color: #2359c4; }
 .tag-grey   { background: #eef1f7; color: var(--testo); }
 
@@ -263,18 +266,18 @@ td.num { font-variant-numeric: tabular-nums; }
   padding: 10px 17px; font: inherit; font-size: .86rem; font-weight: 600; cursor: pointer;
   transition: background .15s, box-shadow .15s;
 }
-.btn:hover:not(:disabled) { background: #244d8e; }
+.btn:hover:not(:disabled) { background: #083b5f; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn.ghost { background: var(--carta); color: var(--inchiostro); border: 1px solid var(--bordo-forte); }
-.btn.ghost:hover:not(:disabled) { background: #f1f1ee; box-shadow: none; }
+.btn.ghost:hover:not(:disabled) { background: #eef1f4; box-shadow: none; }
 .btn.danger { background: var(--carta); color: var(--rosso); border: 1px solid #f6ced2; }
-.btn.danger:hover:not(:disabled) { background: #f7ecec; box-shadow: none; }
+.btn.danger:hover:not(:disabled) { background: #f8ecea; box-shadow: none; }
 
 input[type=search], input[type=email], input[type=password], input[type=text], select {
   padding: 9px 12px; border: 1px solid var(--bordo-forte); border-radius: var(--r-md);
   font: inherit; font-size: .87rem; background: var(--carta); color: var(--inchiostro);
 }
-.sel-soc { background: #f4f3f0; border-radius: var(--r-md); padding: 14px 17px; margin-bottom: 15px; }
+.sel-soc { background: #eef1f4; border-radius: var(--r-md); padding: 14px 17px; margin-bottom: 15px; }
 .sel-soc label { display: block; font-size: .85rem; margin-bottom: 8px; }
 .sel-soc select { min-width: 270px; }
 
@@ -282,7 +285,7 @@ input[type=search], input[type=email], input[type=password], input[type=text], s
   border: 2px dashed var(--bordo-forte); border-radius: var(--r-lg); background: var(--carta);
   padding: 40px 24px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s;
 }
-.drop:hover, .drop.over { border-color: var(--blu); background: #faf9f7; }
+.drop:hover, .drop.over { border-color: var(--blu); background: #f7f9fb; }
 .drop .big { font-size: 1.02rem; font-weight: 700; color: var(--inchiostro); }
 .drop .small { font-size: .85rem; color: var(--tenue); margin-top: 5px; }
 .drop .mapping { font-size: .8rem; color: var(--tenue); margin-top: 13px; }
@@ -296,7 +299,7 @@ input[type=search], input[type=email], input[type=password], input[type=text], s
 
 /* ------------------------------------------------------------- accesso */
 .gate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px;
-        background: #1c1d20; }
+        background: #101418; }
 .gate[hidden] { display: none; }
 .gate-box { width: 100%; max-width: 390px; background: var(--carta); border-radius: var(--r-xl); padding: 32px 30px 26px; box-shadow: 0 20px 48px rgba(0,0,0,.24); }
 .gate-logo { margin-bottom: 14px; }
@@ -520,8 +523,8 @@ const deltaHtml = (v, inverso) => {
 };
 
 const MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
-const PALETTE = ['#2c5ca8','#6a8fc0','#9db4d3','#c6d2e2','#8a8d94','#b9bbc0','#4a8f86','#96701f','#a34440','#6a6f96','#244d8e','#3c3f47'];
-const COLORE_ANNO = ['#2c5ca8', '#96701f', '#2f7a5f', '#6a6f96', '#a34440'];
+const PALETTE = ['#0b4d7c','#3f7fa8','#78a8c8','#b3cadf','#8a8f95','#bcc0c6','#3f7fa8','#a8741a','#b04434','#5d6f84','#083b5f','#2b3038'];
+const COLORE_ANNO = ['#0b4d7c', '#a8741a', '#0b4d7c', '#5d6f84', '#b04434'];
 
 /* =====================================================================
    2. LETTURA DEI FILE
@@ -1061,8 +1064,8 @@ function disegna(id, cfg) {
   Chart.defaults.font.family = "'Segoe UI', Arial, sans-serif";
   grafici[id] = new Chart(c, cfg);
 }
-const assiEuro = { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#efeeea' } }, x: { grid: { display: false } } };
-const assiPct = { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#efeeea' } }, x: { grid: { display: false } } };
+const assiEuro = { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } }, x: { grid: { display: false } } };
+const assiPct = { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#eaeef3' } }, x: { grid: { display: false } } };
 const legenda = { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, pointStyle: 'circle', padding: 14 } } };
 
 /* =====================================================================
@@ -1133,12 +1136,12 @@ const barra = (quota, colore) =>
    incassarla; le tratteggiate rosse sono le posizioni ancora aperte. */
 function ritmo(tempi, aperti, L = 120, H = 24, MAX = 120) {
   const x = g => 3 + Math.min(g, MAX) / MAX * (L - 6);
-  const col = g => g <= 7 ? '#2f7a5f' : g <= 30 ? '#2c5ca8' : g <= 60 ? '#96701f' : '#a34440';
+  const col = g => g <= 7 ? '#0b4d7c' : g <= 30 ? '#0b4d7c' : g <= 60 ? '#a8741a' : '#b04434';
   let s = `<svg class="ritmo" width="${L}" height="${H}" viewBox="0 0 ${L} ${H}" role="img" aria-label="${tempi.length} fatture saldate, ${aperti.length} aperte">`;
   s += `<rect x="0" y="${H/2-5}" width="${L}" height="10" rx="5" fill="#e8edf4"/>`;
   [15, 30, 60].forEach(t => s += `<line x1="${x(t)}" y1="${H/2-6}" x2="${x(t)}" y2="${H/2+6}" stroke="#c3cddb" stroke-width="1" stroke-dasharray="2 2"/>`);
   tempi.forEach(g => s += `<line x1="${x(g)}" y1="${H/2-4.5}" x2="${x(g)}" y2="${H/2+4.5}" stroke="${col(g)}" stroke-width="2.2" stroke-linecap="round" opacity=".85"/>`);
-  aperti.forEach(g => s += `<line x1="${x(g)}" y1="${H/2-7}" x2="${x(g)}" y2="${H/2+7}" stroke="#a34440" stroke-width="2.2" stroke-dasharray="2 1.5"/>`);
+  aperti.forEach(g => s += `<line x1="${x(g)}" y1="${H/2-7}" x2="${x(g)}" y2="${H/2+7}" stroke="#b04434" stroke-width="2.2" stroke-dasharray="2 1.5"/>`);
   return s + '</svg>';
 }
 
@@ -1164,15 +1167,12 @@ function logoSVG(arrabbiato, dim = 44) {
      resta verde quando le cose vanno bene, si spezza e vira al rosso quando
      lo scaduto pesa. Comunica un dato, non solo un umore — e alle dimensioni
      piccole resta leggibile, che una faccia non farebbe. */
-  const stato = arrabbiato ? '#a34440' : '#2f7a5f';
+  const stato = arrabbiato ? '#b04434' : '#0b4d7c';
   const quota = arrabbiato ? 0.44 : 0.9;
   const r = 20, C = 2 * Math.PI * r;
   return `<svg width="${dim}" height="${dim}" viewBox="0 0 52 52" role="img"
       aria-label="STIncassi — ${arrabbiato ? 'credito scaduto rilevante' : 'incassi in ordine'}">
-    <defs><linearGradient id="lgST${dim}${arrabbiato}" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#4d8bfb"/><stop offset="1" stop-color="#244d8e"/>
-    </linearGradient></defs>
-    <rect width="52" height="52" rx="14" fill="url(#lgST${dim}${arrabbiato})"/>
+    <rect width="52" height="52" rx="14" fill="#0b4d7c"/>
     <circle cx="26" cy="26" r="${r}" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="5"/>
     <circle cx="26" cy="26" r="${r}" fill="none" stroke="${stato}" stroke-width="5" stroke-linecap="round"
             stroke-dasharray="${(C * quota).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 26 26)"/>
@@ -1680,13 +1680,13 @@ function rendiPanoramica() {
   pubblica('panoramica', h);
 
   disegna('gIncassato', { type: 'doughnut',
-    data: { labels: ['Incassato', 'Ancora aperto'], datasets: [{ data: [k.incassato, k.aperto], backgroundColor: ['#2f7a5f', '#a34440'], borderWidth: 0 }] },
+    data: { labels: ['Incassato', 'Ancora aperto'], datasets: [{ data: [k.incassato, k.aperto], backgroundColor: ['#0b4d7c', '#b04434'], borderWidth: 0 }] },
     options: { maintainAspectRatio: false, cutout: '62%', plugins: { ...legenda,
       tooltip: { callbacks: { label: c => `${c.label}: ${euro(c.parsed)} (${dec(c.parsed / (k.imponibile || 1) * 100)}%)` } } } } });
 
   disegna('gAnzianita', { type: 'bar',
     data: { labels: anz.map(a => a.fascia), datasets: [{ data: anz.map(a => a.importo),
-      backgroundColor: ['#2f7a5f', '#4a8f86', '#2c5ca8', '#96701f', '#a8804a', '#8c3a37'], borderRadius: 4 }] },
+      backgroundColor: ['#0b4d7c', '#3f7fa8', '#0b4d7c', '#a8741a', '#a8804a', '#8c3a37'], borderRadius: 4 }] },
     options: { maintainAspectRatio: false, scales: assiEuro, plugins: { legend: { display: false },
       tooltip: { callbacks: { label: c => `${euro(c.parsed.y)} · ${anz[c.dataIndex].documenti} doc.` } } } } });
 }
@@ -1769,7 +1769,7 @@ function rendiMensile() {
   disegna('gEmInc', { type: 'bar',
     data: { labels: etichette, datasets: [
       { label: 'Emesso', data: serieEm, backgroundColor: '#1c3c6e', borderRadius: 3 },
-      { label: 'Incassato', data: serieIn, type: 'line', borderColor: '#2f7a5f', backgroundColor: '#2f7a5f33', tension: .25, pointRadius: 2 }] },
+      { label: 'Incassato', data: serieIn, type: 'line', borderColor: '#0b4d7c', backgroundColor: '#0b4d7c33', tension: .25, pointRadius: 2 }] },
     options: { maintainAspectRatio: false, scales: assiEuro, plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${euro(c.parsed.y)}` } } } } });
 }
 
@@ -1888,7 +1888,7 @@ function rendiTempi() {
   const anz = anzianita(VISTE);
   disegna('gAnz2', { type: 'doughnut',
     data: { labels: anz.map(a => a.fascia), datasets: [{ data: anz.map(a => a.importo),
-      backgroundColor: ['#2f7a5f', '#4a8f86', '#2c5ca8', '#96701f', '#a8804a', '#8c3a37'], borderWidth: 0 }] },
+      backgroundColor: ['#0b4d7c', '#3f7fa8', '#0b4d7c', '#a8741a', '#a8804a', '#8c3a37'], borderWidth: 0 }] },
     options: { maintainAspectRatio: false, cutout: '58%', plugins: { ...legenda,
       tooltip: { callbacks: { label: c => `${c.label}: ${euro(c.parsed)} · ${anz[c.dataIndex].documenti} doc.` } } } } });
 }
@@ -2006,14 +2006,14 @@ function rendiCredito() {
       { t: 'Cliente', v: c => `<div class="cliente-cell" title="${esc(c.nome)}">${esc(c.nome)}</div>` },
       { t: 'Documenti', num: true, v: c => num(c.doc) },
       { t: 'Imponibile aperto', num: true, v: c => euro(c.imponibile) },
-      { t: 'Quota', num: true, v: c => `${pct(c.imponibile / totAperto * 100)} ${barra(c.imponibile / totAperto * 100 * 4, '#a34440')}` },
+      { t: 'Quota', num: true, v: c => `${pct(c.imponibile / totAperto * 100)} ${barra(c.imponibile / totAperto * 100 * 4, '#b04434')}` },
       { t: 'Aperto da', num: true, v: c => `<span class="tag ${c.max > 180 ? 'tag-red' : c.max > 90 ? 'tag-orange' : 'tag-grey'}">${num(c.max)} gg</span>` }
     ], clienti.slice(0, 60),
     { nota: clienti.length > 60 ? `Mostrati i 60 clienti con esposizione maggiore su ${num(clienti.length)}.` : '' }) + '</div>';
 
   pubblica('credito', h);
 
-  const colAnz = ['#2f7a5f', '#4a8f86', '#2c5ca8', '#96701f', '#a8804a', '#8c3a37'];
+  const colAnz = ['#0b4d7c', '#3f7fa8', '#0b4d7c', '#a8741a', '#a8804a', '#8c3a37'];
   let cum = 0;
   const cumulata = anz.map(f => { cum += f.importo; return cum / totAperto * 100; });
   disegna('cAging', { type: 'bar',
@@ -2022,7 +2022,7 @@ function rendiCredito() {
       { type: 'line', label: 'Quota cumulata', data: cumulata, borderColor: '#1c3c6e', borderWidth: 2,
         pointRadius: 3, yAxisID: 'y2', order: 1 }] },
     options: { maintainAspectRatio: false,
-      scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#efeeea' } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
                 y2: { position: 'right', beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { display: false } },
                 x: { grid: { display: false } } },
       plugins: { legend: { display: false },
@@ -2031,10 +2031,10 @@ function rendiCredito() {
   disegna('cClienti', { type: 'bar',
     data: { labels: top15.map(c => c.nome.length > 28 ? c.nome.slice(0, 28) + '…' : c.nome),
       datasets: [{ data: top15.map(c => c.imponibile),
-        backgroundColor: top15.map(c => c.max > 180 ? '#8c3a37' : c.max > 90 ? '#a8804a' : c.max > 30 ? '#96701f' : '#2c5ca8'),
+        backgroundColor: top15.map(c => c.max > 180 ? '#8c3a37' : c.max > 90 ? '#a8804a' : c.max > 30 ? '#a8741a' : '#0b4d7c'),
         borderRadius: 4 }] },
     options: { indexAxis: 'y', maintainAspectRatio: false,
-      scales: { x: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#efeeea' } },
+      scales: { x: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
                 y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
       plugins: { legend: { display: false },
         tooltip: { callbacks: { label: c => `${euro(c.parsed.x)} · ${top15[c.dataIndex].doc} doc. · fino a ${num(top15[c.dataIndex].max)} gg` } } } } });
@@ -2049,7 +2049,7 @@ function rendiCredito() {
     data: { labels: famArr.map(([k]) => k.length > 26 ? k.slice(0, 26) + '…' : k),
       datasets: [{ data: famArr.map(([, v]) => v), backgroundColor: PALETTE, borderRadius: 4 }] },
     options: { indexAxis: 'y', maintainAspectRatio: false,
-      scales: { x: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#efeeea' } },
+      scales: { x: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
                 y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => euro(c.parsed.x) } } } } });
 
@@ -2058,10 +2058,10 @@ function rendiCredito() {
       datasets: [{ data: mesiArr.map(([, v]) => v),
         backgroundColor: mesiArr.map(([k]) => {
           const eta = Math.round((new Date(REF) - new Date(k + '-15')) / 864e5);
-          return eta > 365 ? '#8c3a37' : eta > 180 ? '#a8804a' : eta > 90 ? '#96701f' : '#2c5ca8';
+          return eta > 365 ? '#8c3a37' : eta > 180 ? '#a8804a' : eta > 90 ? '#a8741a' : '#0b4d7c';
         }), borderRadius: 3 }] },
     options: { maintainAspectRatio: false,
-      scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#efeeea' } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
                 x: { grid: { display: false }, ticks: { font: { size: 10 } } } },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => euro(c.parsed.y) } } } } });
 }
@@ -2205,16 +2205,16 @@ function rendiClienti() {
   disegna('gRitardi', { type: 'bar',
     data: { labels: ritardo.map(c => c.nome.length > 30 ? c.nome.slice(0, 30) + '…' : c.nome),
       datasets: [{ data: ritardo.map(c => c.dso),
-        backgroundColor: ritardo.map(c => c.dso > 90 ? '#a34440' : c.dso > 45 ? '#96701f' : '#2c5ca8'), borderRadius: 4 }] },
+        backgroundColor: ritardo.map(c => c.dso > 90 ? '#b04434' : c.dso > 45 ? '#a8741a' : '#0b4d7c'), borderRadius: 4 }] },
     options: { indexAxis: 'y', maintainAspectRatio: false,
-      scales: { x: { beginAtZero: true, ticks: { callback: v => v + ' gg' }, grid: { color: '#efeeea' } }, y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
+      scales: { x: { beginAtZero: true, ticks: { callback: v => v + ' gg' }, grid: { color: '#eaeef3' } }, y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${dec(c.parsed.x)} gg · ${euro(ritardo[c.dataIndex].imponibile)} · mediana ${dec(ritardo[c.dataIndex].mediana)} gg` } } } } });
 
   disegna('gPareto', { type: 'line',
-    data: { datasets: [{ data: pareto, borderColor: '#1c3c6e', backgroundColor: '#2c5ca833', fill: true, tension: .2, pointRadius: 0, borderWidth: 2 }] },
+    data: { datasets: [{ data: pareto, borderColor: '#1c3c6e', backgroundColor: '#0b4d7c33', fill: true, tension: .2, pointRadius: 0, borderWidth: 2 }] },
     options: { maintainAspectRatio: false, parsing: false,
       scales: { x: { type: 'linear', title: { display: true, text: 'n. clienti ordinati per fatturato' }, grid: { display: false } },
-                y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#efeeea' } } },
+                y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#eaeef3' } } },
       plugins: { legend: { display: false }, tooltip: { callbacks: { title: c => `Primi ${c[0].parsed.x} clienti`, label: c => pct(c.parsed.y) } } } } });
 }
 
@@ -2246,7 +2246,7 @@ function rendiAttivita() {
     { t: 'Famiglia', v: r => esc(r.nome) },
     ...anni.map(a => ({ t: String(a), num: true, v: r => euro(r.anni[a] || 0) })),
     { t: 'Totale', num: true, v: r => euro(r.importo) },
-    { t: 'Quota', num: true, v: r => `${pct(r.quota)} ${barra(r.quota, '#2c5ca8')}` },
+    { t: 'Quota', num: true, v: r => `${pct(r.quota)} ${barra(r.quota, '#0b4d7c')}` },
     ...(a1 && a2 ? [{ t: `${a1} → ${a2}`, num: true, v: r => {
       const va = variazione(r.anni[a2] || 0, r.anni[a1] || 0);
       return va == null ? '—' : `<span class="tag ${va >= 0 ? 'tag-green' : 'tag-red'}">${va > 0 ? '+' : ''}${dec(va)}%</span>`; } }] : []),
@@ -2304,14 +2304,14 @@ function rendiAttivita() {
       datasets: anni.map((a, i) => ({ label: String(a), data: fam.map(f => (f.anni[a] || 0) / totAnno[a] * 100),
         backgroundColor: COLORE_ANNO[i % 5], borderRadius: 3 })) },
     options: { indexAxis: 'y', maintainAspectRatio: false,
-      scales: { x: { beginAtZero: true, ticks: { callback: v => v + '%' }, grid: { color: '#efeeea' } }, y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
+      scales: { x: { beginAtZero: true, ticks: { callback: v => v + '%' }, grid: { color: '#eaeef3' } }, y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
       plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${pct(c.parsed.x)}` } } } } });
 
   disegna('gVoci', { type: 'bar',
     data: { labels: top15.map(v => v.nome.length > 30 ? v.nome.slice(0, 30) + '…' : v.nome),
       datasets: [{ data: top15.map(v => v.importo), backgroundColor: PALETTE, borderRadius: 4 }] },
     options: { indexAxis: 'y', maintainAspectRatio: false,
-      scales: { x: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#efeeea' } }, y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
+      scales: { x: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } }, y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => euro(c.parsed.x) } } } } });
 }
 
@@ -2457,14 +2457,14 @@ function rendiConfronto() {
 
   disegna('gComp', { type: 'bar',
     data: { labels: dati.map(d => String(d.anno)), datasets: [
-      { label: 'Incassato', data: dati.map(d => d.incassato), backgroundColor: '#2f7a5f', borderRadius: 4 },
-      { label: 'Ancora aperto', data: dati.map(d => d.aperto), backgroundColor: '#a34440', borderRadius: 4 }] },
-    options: { maintainAspectRatio: false, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#efeeea' } } },
+      { label: 'Incassato', data: dati.map(d => d.incassato), backgroundColor: '#0b4d7c', borderRadius: 4 },
+      { label: 'Ancora aperto', data: dati.map(d => d.aperto), backgroundColor: '#b04434', borderRadius: 4 }] },
+    options: { maintainAspectRatio: false, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } } },
       plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${euro(c.parsed.y)}` } } } } });
 
   disegna('gMov', { type: 'doughnut',
     data: { labels: ['Confermati', 'Nuovi', 'Non più attivi'],
-      datasets: [{ data: [mov.mantenuti, mov.nuovi, mov.persi], backgroundColor: ['#2c5ca8', '#2f7a5f', '#a34440'], borderWidth: 0 }] },
+      datasets: [{ data: [mov.mantenuti, mov.nuovi, mov.persi], backgroundColor: ['#0b4d7c', '#0b4d7c', '#b04434'], borderWidth: 0 }] },
     options: { maintainAspectRatio: false, cutout: '58%', plugins: { ...legenda } } });
 }
 
@@ -2568,7 +2568,7 @@ function rendiCosti() {
       { t: 'Totale', num: true, v: g => `<strong>${euro(g.totale)}</strong>` },
       { t: 'Peso', num: true, v: g => {
           const t = somma(k.gruppi, x => x.totale) || 1;
-          return `${pct(g.totale / t * 100)} ${barra(g.totale / t * 100, '#a34440')}`; } },
+          return `${pct(g.totale / t * 100)} ${barra(g.totale / t * 100, '#b04434')}`; } },
       { t: 'Fatturato', v: g => sezionaleDiGruppo(g.gruppo)
           ? `<span class="tag tag-blue">sezionale ${esc(sezionaleDiGruppo(g.gruppo))}</span>`
           : '<span class="tag tag-grey">nessun sezionale</span>' }
@@ -2601,22 +2601,22 @@ function rendiCosti() {
 
   pubblica('costi', h);
 
-  const colGruppi = ['#2c5ca8', '#4a8f86', '#a34440', '#96701f', '#6a6f96', '#2f7a5f'];
+  const colGruppi = ['#0b4d7c', '#3f7fa8', '#b04434', '#a8741a', '#5d6f84', '#0b4d7c'];
   disegna('kGruppi', { type: 'bar',
     data: { labels: k.gruppi.filter(g => g.totale > 0).map(g => nomeGruppo(g.gruppo)),
       datasets: [
-        { label: 'Costi diretti', data: k.gruppi.filter(g => g.totale > 0).map(g => g.diretti), backgroundColor: '#2c5ca8', borderRadius: 4 },
-        { label: 'Personale', data: k.gruppi.filter(g => g.totale > 0).map(g => g.personale), backgroundColor: '#6a6f96', borderRadius: 4 },
-        { label: 'Quota comuni', data: k.gruppi.filter(g => g.totale > 0).map(g => g.comuni), backgroundColor: '#4a8f86', borderRadius: 4 }] },
+        { label: 'Costi diretti', data: k.gruppi.filter(g => g.totale > 0).map(g => g.diretti), backgroundColor: '#0b4d7c', borderRadius: 4 },
+        { label: 'Personale', data: k.gruppi.filter(g => g.totale > 0).map(g => g.personale), backgroundColor: '#5d6f84', borderRadius: 4 },
+        { label: 'Quota comuni', data: k.gruppi.filter(g => g.totale > 0).map(g => g.comuni), backgroundColor: '#3f7fa8', borderRadius: 4 }] },
     options: { indexAxis: 'y', maintainAspectRatio: false,
-      scales: { x: { stacked: true, beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#efeeea' } },
+      scales: { x: { stacked: true, beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
                 y: { stacked: true, grid: { display: false } } },
       plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${euro(c.parsed.x)}` } } } } });
 
   disegna('kComp', { type: 'doughnut',
     data: { labels: ['Diretti ai gruppi', 'Personale', 'Comuni per quota', 'Non ripartiti'],
       datasets: [{ data: [k.diretti - k.personale, k.personale, k.comuni, k.nonRipartito],
-        backgroundColor: ['#2c5ca8', '#6a6f96', '#4a8f86', '#d8d7d2'], borderWidth: 0 }] },
+        backgroundColor: ['#0b4d7c', '#5d6f84', '#3f7fa8', '#cbd3dd'], borderWidth: 0 }] },
     options: { maintainAspectRatio: false, cutout: '58%',
       plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.label}: ${euro(c.parsed)}` } } } } });
 
@@ -2624,7 +2624,7 @@ function rendiCosti() {
     data: { labels: perTip.map(t => t.tipologia.length > 30 ? t.tipologia.slice(0, 30) + '…' : t.tipologia),
       datasets: [{ data: perTip.map(t => t.importo), backgroundColor: PALETTE, borderRadius: 4 }] },
     options: { indexAxis: 'y', maintainAspectRatio: false,
-      scales: { x: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#efeeea' } },
+      scales: { x: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
                 y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => euro(c.parsed.x) } } } } });
 
@@ -2746,19 +2746,19 @@ function rendiMargini() {
 
   disegna('mBarre', { type: 'bar',
     data: { labels: c.righe.map(r => r.nome), datasets: [
-      { label: 'Ricavi', data: c.righe.map(r => r.ricavi), backgroundColor: '#2c5ca8', borderRadius: 4 },
-      { label: 'Costi', data: c.righe.map(r => r.costi), backgroundColor: '#a34440', borderRadius: 4 }] },
+      { label: 'Ricavi', data: c.righe.map(r => r.ricavi), backgroundColor: '#0b4d7c', borderRadius: 4 },
+      { label: 'Costi', data: c.righe.map(r => r.costi), backgroundColor: '#b04434', borderRadius: 4 }] },
     options: { maintainAspectRatio: false,
-      scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#efeeea' } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
                 x: { grid: { display: false } } },
       plugins: { ...legenda, tooltip: { callbacks: { label: x => `${x.dataset.label}: ${euro(x.parsed.y)}` } } } } });
 
   disegna('mMargine', { type: 'bar',
     data: { labels: c.righe.map(r => r.nome),
       datasets: [{ data: c.righe.map(r => r.margine),
-        backgroundColor: c.righe.map(r => r.margine >= 0 ? '#2f7a5f' : '#a34440'), borderRadius: 4 }] },
+        backgroundColor: c.righe.map(r => r.margine >= 0 ? '#0b4d7c' : '#b04434'), borderRadius: 4 }] },
     options: { indexAxis: 'y', maintainAspectRatio: false,
-      scales: { x: { ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#efeeea' } },
+      scales: { x: { ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
                 y: { grid: { display: false } } },
       plugins: { legend: { display: false },
         tooltip: { callbacks: { label: x => `${euro(x.parsed.x)} · ${pct(c.righe[x.dataIndex].marginePct)}` } } } } });
