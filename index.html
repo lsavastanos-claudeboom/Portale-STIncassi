@@ -10,233 +10,358 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
-  :root {
-    --primary: #1a3a5c; --accent: #2e86de; --accent2: #f39c12; --accent3: #27ae60;
-    --danger: #e74c3c; --light: #f4f7fb; --card: #ffffff; --border: #dde3ee;
-    --text: #2c3e50; --muted: #7f8c8d;
+/* =====================================================================
+   STIncassi — impianto visivo
+   Navigazione laterale, tessere con icona colorata, fasce in evidenza
+   per i numeri principali. Fondo chiaro, ombre morbide, angoli ampi.
+   ===================================================================== */
+:root {
+  --sfondo:      #f4f6fc;
+  --carta:       #ffffff;
+  --inchiostro:  #1c2a3f;
+  --testo:       #46536b;
+  --tenue:       #8b96ab;
+  --bordo:       #e8ecf5;
+  --bordo-forte: #dbe2ef;
+
+  --blu:      #3d7ff5;
+  --blu-cupo: #1e3a68;
+  --acqua:    #23bfae;
+  --rosa:     #f4487c;
+  --viola:    #7b61ff;
+  --ambra:    #f5a524;
+  --verde:    #17b877;
+  --rosso:    #ef4d5a;
+
+  --r-xl: 20px; --r-lg: 16px; --r-md: 12px; --r-sm: 9px;
+  --ombra:    0 1px 2px rgba(28,42,63,.04), 0 6px 22px rgba(28,42,63,.06);
+  --ombra-lg: 0 4px 12px rgba(28,42,63,.07), 0 18px 46px rgba(28,42,63,.10);
+  --lato: 250px;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--sfondo); color: var(--testo);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 14.5px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4 { color: var(--inchiostro); margin: 0; font-weight: 700; letter-spacing: -.015em; }
+a { color: var(--blu); }
+:focus-visible { outline: 2px solid var(--blu); outline-offset: 2px; }
+
+/* ------------------------------------------------------------ impianto */
+.app { display: flex; min-height: 100vh; }
+
+.lato {
+  width: var(--lato); flex: 0 0 var(--lato); background: var(--carta);
+  border-right: 1px solid var(--bordo); padding: 22px 14px 18px;
+  display: flex; flex-direction: column; gap: 22px;
+  position: sticky; top: 0; height: 100vh;
+}
+.marchio-riga { display: flex; align-items: center; gap: 11px; padding: 0 8px; }
+.marchio-testo h1 { font-size: 1.2rem; line-height: 1.15; }
+.marchio-testo h1 span { color: var(--blu); }
+.motto { font-size: .69rem; font-style: italic; color: var(--tenue); margin: 1px 0 0; line-height: 1.3; }
+
+.nav { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; }
+.nav-gruppo {
+  font-size: .67rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--tenue); padding: 14px 10px 6px;
+}
+.nav button {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  background: none; border: 0; border-radius: var(--r-md);
+  padding: 10px 11px; font: inherit; font-size: .89rem; color: var(--testo);
+  cursor: pointer; text-align: left; transition: background .15s, color .15s;
+}
+.nav button:hover { background: #f1f4fb; color: var(--inchiostro); }
+.nav button svg { flex: 0 0 18px; }
+.nav button[aria-selected="true"] {
+  background: var(--blu); color: #fff; font-weight: 600;
+  box-shadow: 0 6px 16px rgba(61,127,245,.32);
+}
+.nav button[aria-selected="true"] svg { stroke: #fff; }
+
+.lato-piede { border-top: 1px solid var(--bordo); padding-top: 14px; font-size: .78rem; color: var(--tenue); }
+.lato-piede .mail { color: var(--inchiostro); font-weight: 600; word-break: break-all; margin-bottom: 3px; font-size: .8rem; }
+
+.principale { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* --------------------------------------------------------------- barra */
+.cima {
+  background: var(--carta); border-bottom: 1px solid var(--bordo);
+  padding: 16px 28px; position: sticky; top: 0; z-index: 20;
+}
+.cima-riga { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; flex-wrap: wrap; }
+.cima h2 { font-size: 1.28rem; }
+.cima .occhiello { font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--blu); margin-bottom: 2px; }
+.badges { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
+.badge {
+  font-size: .73rem; font-weight: 600; padding: 4px 11px; border-radius: 20px;
+  background: #eef2fb; color: var(--testo); white-space: nowrap;
+}
+.badge.ok   { background: #e4f7ef; color: #0f7d54; }
+.badge.warn { background: #fdf0dc; color: #96620b; }
+
+.filtri { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.filtro { display: inline-flex; background: #f1f4fb; border-radius: var(--r-md); padding: 3px; }
+.filtro button {
+  border: 0; background: none; border-radius: var(--r-sm); padding: 7px 13px;
+  font: inherit; font-size: .82rem; color: var(--testo); cursor: pointer; white-space: nowrap;
+  transition: background .15s, color .15s;
+}
+.filtro button:hover { color: var(--inchiostro); }
+.filtro button[aria-pressed="true"] { background: var(--carta); color: var(--inchiostro); font-weight: 600; box-shadow: var(--ombra); }
+.filtro-label { font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--tenue); }
+.spacer { flex: 1; }
+
+.container { padding: 24px 28px 60px; max-width: 1380px; }
+.section[hidden] { display: none; }
+
+/* -------------------------------------------------------------- schede */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-bottom: 20px; }
+
+.kpi-card {
+  background: var(--carta); border-radius: var(--r-lg); padding: 17px 18px;
+  box-shadow: var(--ombra); display: flex; gap: 14px; align-items: flex-start;
+  transition: box-shadow .18s, transform .18s;
+}
+.kpi-card:hover { box-shadow: var(--ombra-lg); transform: translateY(-2px); }
+.kpi-icona {
+  flex: 0 0 42px; height: 42px; border-radius: 13px;
+  display: grid; place-items: center; background: #eaf1fe; color: var(--blu);
+}
+.kpi-card.green  .kpi-icona { background: #e2f8ef; color: var(--verde); }
+.kpi-card.orange .kpi-icona { background: #fdf1dd; color: #d68a0c; }
+.kpi-card.red    .kpi-icona { background: #fdeaec; color: var(--rosso); }
+.kpi-testo { min-width: 0; }
+.kpi-label { font-size: .74rem; font-weight: 600; color: var(--tenue); letter-spacing: .02em; }
+.kpi-value { font-size: 1.55rem; font-weight: 700; color: var(--inchiostro); line-height: 1.2; margin-top: 2px; letter-spacing: -.02em; }
+.kpi-sub { font-size: .76rem; color: var(--tenue); margin-top: 2px; }
+.delta { font-size: .76rem; font-weight: 700; margin-top: 4px; }
+.delta.up { color: var(--verde); } .delta.down { color: var(--rosso); } .delta.neu { color: var(--ambra); }
+
+/* Fascia in evidenza: i numeri di testa, su fondo pieno. */
+.fascia-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.fascia {
+  border-radius: var(--r-lg); padding: 18px 20px; color: #fff;
+  display: flex; align-items: center; gap: 15px; box-shadow: var(--ombra-lg);
+}
+.fascia.blu   { background: linear-gradient(135deg, #4d8bfb, #2a5fd6); }
+.fascia.verde { background: linear-gradient(135deg, #2ad39a, #109c68); }
+.fascia.rosa  { background: linear-gradient(135deg, #fb5f8c, #d92a63); }
+.fascia.ambra { background: linear-gradient(135deg, #fbb63f, #e08a10); }
+.fascia-icona { flex: 0 0 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.22); display: grid; place-items: center; }
+.fascia-label { font-size: .75rem; font-weight: 600; opacity: .92; }
+.fascia-valore { font-size: 1.62rem; font-weight: 700; line-height: 1.15; letter-spacing: -.02em; }
+.fascia-sub { font-size: .74rem; opacity: .85; margin-top: 1px; }
+
+.chart-card { background: var(--carta); border-radius: var(--r-lg); padding: 20px 22px; box-shadow: var(--ombra); margin-bottom: 18px; }
+.chart-card h3 { font-size: .95rem; margin-bottom: 3px; }
+.chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.chart-wrap { position: relative; height: 270px; }
+.chart-wrap-lg { position: relative; height: 330px; }
+
+/* -------------------------------------- pannello di lettura e overview */
+.pannello { background: var(--carta); border-radius: var(--r-xl); padding: 22px 24px; margin-bottom: 22px; box-shadow: var(--ombra); }
+.overview { border-bottom: 1px solid var(--bordo); padding-bottom: 15px; margin-bottom: 3px; }
+.ov-titolo { font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--tenue); margin-bottom: 11px; }
+.ov-dati { display: flex; flex-wrap: wrap; gap: 8px 26px; font-size: .84rem; color: var(--tenue); }
+.ov-dati b { color: var(--inchiostro); font-size: 1.06rem; font-weight: 700; letter-spacing: -.01em; }
+.ov-rosso b { color: var(--rosso); }
+
+.letture { display: grid; gap: 0; }
+.lettura { padding: 15px 0 15px 16px; margin-top: 14px; border-left: 3px solid var(--blu); font-size: .88rem; line-height: 1.68; }
+.lettura + .lettura { border-top: 1px solid var(--bordo); }
+.lettura strong:first-child { display: block; color: var(--inchiostro); margin-bottom: 3px; font-size: .92rem; }
+/* Dentro il pannello i riquadri non hanno fondo: sono già dentro una
+   scheda bianca, e il colore pieno li farebbe sembrare avvisi separati. */
+.lettura.insight, .lettura.warn-box, .lettura.evolution-box {
+  background: none; border-radius: 0; margin-top: 14px;
+  padding: 15px 0 15px 16px; border-top: 0; border-right: 0; border-bottom: 0;
+}
+.lettura + .lettura { border-top: 1px solid var(--bordo); }
+.lettura.warn-box { border-left-color: var(--ambra); }
+.lettura.warn-box strong:first-child { color: #96620b; }
+.lettura.evolution-box { border-left-color: var(--verde); }
+.lettura.evolution-box strong:first-child { color: #0f7d54; }
+
+/* Riquadri usati fuori dal pannello (caricamenti, esiti). */
+.insight, .warn-box, .evolution-box, .err-box {
+  border-radius: var(--r-md); padding: 14px 17px; font-size: .87rem; line-height: 1.62; margin-top: 14px;
+}
+.insight        { background: #eef4ff; border-left: 3px solid var(--blu); }
+.warn-box       { background: #fef7ec; border-left: 3px solid var(--ambra); }
+.evolution-box  { background: #e9faf2; border-left: 3px solid var(--verde); }
+.err-box        { background: #fdeced; border-left: 3px solid var(--rosso); color: #a32530; }
+
+/* ------------------------------------------------------------- tabelle */
+.tab-scroll { overflow-x: auto; margin: 0 -22px; padding: 0 22px; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+th {
+  text-align: left; font-size: .69rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--tenue); padding: 10px 12px; border-bottom: 1px solid var(--bordo-forte); white-space: nowrap;
+  background: var(--carta); position: sticky; top: 0;
+}
+th.num, td.num { text-align: right; }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--blu); }
+td { padding: 11px 12px; border-bottom: 1px solid var(--bordo); }
+tbody tr:hover { background: #f7f9fe; }
+td.num { font-variant-numeric: tabular-nums; }
+.cliente-cell { max-width: 290px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--inchiostro); }
+
+.tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .73rem; font-weight: 600; white-space: nowrap; }
+.tag-red    { background: #fdeaec; color: #c32d3c; }
+.tag-orange { background: #fdf1dd; color: #96620b; }
+.tag-green  { background: #e2f8ef; color: #0f7d54; }
+.tag-blue   { background: #e8f0fe; color: #2359c4; }
+.tag-grey   { background: #eef1f7; color: var(--testo); }
+
+.bar-wrap { background: #eef1f7; border-radius: 6px; height: 7px; overflow: hidden; min-width: 62px; display: inline-block; vertical-align: middle; }
+.bar-fill { height: 100%; border-radius: 6px; }
+.ritmo { display: block; }
+
+/* -------------------------------------------------------------- moduli */
+.btn {
+  background: var(--blu); color: #fff; border: 0; border-radius: var(--r-md);
+  padding: 10px 17px; font: inherit; font-size: .86rem; font-weight: 600; cursor: pointer;
+  transition: background .15s, box-shadow .15s;
+}
+.btn:hover:not(:disabled) { background: #2f6fe0; box-shadow: 0 6px 16px rgba(61,127,245,.3); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.ghost { background: var(--carta); color: var(--inchiostro); border: 1px solid var(--bordo-forte); }
+.btn.ghost:hover:not(:disabled) { background: #f1f4fb; box-shadow: none; }
+.btn.danger { background: var(--carta); color: var(--rosso); border: 1px solid #f6ced2; }
+.btn.danger:hover:not(:disabled) { background: #fdeaec; box-shadow: none; }
+
+input[type=search], input[type=email], input[type=password], input[type=text], select {
+  padding: 9px 12px; border: 1px solid var(--bordo-forte); border-radius: var(--r-md);
+  font: inherit; font-size: .87rem; background: var(--carta); color: var(--inchiostro);
+}
+.sel-soc { background: #eef4ff; border-radius: var(--r-md); padding: 14px 17px; margin-bottom: 15px; }
+.sel-soc label { display: block; font-size: .85rem; margin-bottom: 8px; }
+.sel-soc select { min-width: 270px; }
+
+.drop {
+  border: 2px dashed var(--bordo-forte); border-radius: var(--r-lg); background: var(--carta);
+  padding: 40px 24px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s;
+}
+.drop:hover, .drop.over { border-color: var(--blu); background: #f6f9ff; }
+.drop .big { font-size: 1.02rem; font-weight: 700; color: var(--inchiostro); }
+.drop .small { font-size: .85rem; color: var(--tenue); margin-top: 5px; }
+.drop .mapping { font-size: .8rem; color: var(--tenue); margin-top: 13px; }
+
+.vuoto { text-align: center; padding: 44px 20px; color: var(--tenue); }
+.vuoto h3 { margin-bottom: 6px; }
+.kpi-sub a { color: var(--blu); }
+
+.caricando { display: inline-block; width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: gira .7s linear infinite; vertical-align: -3px; }
+@keyframes gira { to { transform: rotate(360deg); } }
+
+/* ------------------------------------------------------------- accesso */
+.gate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px;
+        background: linear-gradient(150deg, #2a5fd6 0%, #1e3a68 60%, #16263f 100%); }
+.gate[hidden] { display: none; }
+.gate-box { width: 100%; max-width: 390px; background: var(--carta); border-radius: var(--r-xl); padding: 32px 30px 26px; box-shadow: 0 26px 64px rgba(0,0,0,.3); }
+.gate-logo { margin-bottom: 14px; }
+.gate-marchio { font-size: 1.35rem; font-weight: 700; color: var(--inchiostro); }
+.gate-sotto { font-size: .8rem; font-style: italic; color: var(--tenue); margin-bottom: 22px; }
+.gate-campo { display: block; margin-bottom: 14px; }
+.gate-campo span { display: block; font-size: .78rem; font-weight: 600; color: var(--testo); margin-bottom: 5px; }
+.gate-campo input { width: 100%; }
+.gate-nota { font-size: .78rem; color: var(--tenue); margin-top: 16px; line-height: 1.55; }
+
+footer { padding: 22px 28px 40px; font-size: .78rem; color: var(--tenue); }
+
+.recharts-default-tooltip, .chartjs-tooltip { border-radius: var(--r-md) !important; }
+
+/* ======================================================= schermi stretti */
+@media (max-width: 1000px) {
+  .app { flex-direction: column; }
+  .lato {
+    width: 100%; flex: none; height: auto; position: sticky; top: 0; z-index: 30;
+    flex-direction: column; gap: 0; padding: 12px 14px 0;
+    border-right: 0; border-bottom: 1px solid var(--bordo);
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--light); color: var(--text); font-size: 15px; }
-
-  header { background: linear-gradient(135deg, var(--primary) 0%, #2c5282 100%); color: #fff; padding: 30px 40px 24px; }
-  header h1 { font-size: 1.9rem; font-weight: 700; margin-bottom: 6px; }
-  header p { opacity: .82; font-size: .95rem; }
-  .badges { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
-  .badge { display: inline-block; background: rgba(255,255,255,.2); border-radius: 20px; padding: 3px 12px; font-size: .8rem; }
-  .badge.warn { background: rgba(243,156,18,.25); border: 1px solid rgba(243,156,18,.5); }
-  .badge.ok { background: rgba(39,174,96,.3); border: 1px solid rgba(39,174,96,.6); }
-
-  nav.tabs { background: #fff; border-bottom: 1px solid var(--border); padding: 0 40px; display: flex; gap: 4px; overflow-x: auto; position: sticky; top: 0; z-index: 20; }
-  nav.tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 13px 15px; font-family: inherit; font-size: .92rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
-  nav.tabs button:hover { color: var(--primary); }
-  nav.tabs button[aria-selected="true"] { color: var(--primary); font-weight: 700; border-bottom-color: var(--accent); }
-
-  .container { max-width: 1240px; margin: 0 auto; padding: 26px 20px 60px; }
-  h2 { font-size: 1.3rem; font-weight: 700; color: var(--primary); margin-bottom: 18px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); display: flex; align-items: center; gap: 8px; }
-  h3 { font-size: 1rem; font-weight: 600; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .05em; }
-  .section { margin-bottom: 34px; }
-  .section[hidden] { display: none; }
-
-  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
-  .kpi-card { background: var(--card); border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,.06); border-left: 4px solid var(--accent); }
-  .kpi-card.green { border-left-color: var(--accent3); }
-  .kpi-card.orange { border-left-color: var(--accent2); }
-  .kpi-card.red { border-left-color: var(--danger); }
-  .kpi-label { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
-  .kpi-value { font-size: 1.75rem; font-weight: 700; color: var(--primary); line-height: 1.1; }
-  .kpi-sub { font-size: .8rem; color: var(--muted); margin-top: 4px; }
-  .delta { font-size: .8rem; margin-top: 5px; font-weight: 600; }
-  .delta.up { color: var(--accent3); } .delta.down { color: var(--danger); } .delta.neu { color: var(--accent2); }
-
-  .chart-card { background: var(--card); border-radius: 12px; padding: 22px; box-shadow: 0 2px 8px rgba(0,0,0,.06); margin-bottom: 20px; }
-  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  .chart-wrap { position: relative; height: 280px; }
-  .chart-wrap-lg { position: relative; height: 340px; }
-
-  .insight { background: #eef4ff; border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 13px 18px; margin-top: 16px; font-size: .9rem; line-height: 1.6; }
-  .insight strong { color: var(--primary); }
-  .warn-box { background: #fff8f0; border: 1px solid #f5d9b0; border-radius: 10px; padding: 13px 18px; margin-top: 14px; font-size: .88rem; line-height: 1.6; }
-  .warn-box strong { color: #b9770e; }
-  .evolution-box { background: #f0fff4; border: 1px solid #b7ebc8; border-radius: 10px; padding: 13px 18px; margin-top: 14px; font-size: .88rem; line-height: 1.6; }
-  .evolution-box strong { color: #1a6b35; }
-  .err-box { background: #fdecea; border: 1px solid #f5c6c2; border-radius: 10px; padding: 13px 18px; margin-top: 14px; font-size: .88rem; color: #a03027; }
-
-  .tab-scroll { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
-  th { background: var(--primary); color: #fff; padding: 10px 13px; text-align: left; font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; position: sticky; top: 0; }
-  th.num, td.num { text-align: right; }
-  th.sortable { cursor: pointer; user-select: none; }
-  th.sortable:hover { background: #24507f; }
-  td { padding: 9px 13px; border-bottom: 1px solid var(--border); }
-  tbody tr:nth-child(even) { background: #fafcfe; }
-  tbody tr:hover { background: #eef4ff; }
-  td.num { font-variant-numeric: tabular-nums; }
-  .cliente-cell { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-  .tag { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: .75rem; font-weight: 600; white-space: nowrap; }
-  .tag-red { background: #fdecea; color: var(--danger); }
-  .tag-orange { background: #fef9e7; color: #b9770e; }
-  .tag-green { background: #eafaf1; color: #1a6b35; }
-  .tag-blue { background: #eaf2fd; color: #1b5e9e; }
-  .tag-grey { background: #eef1f5; color: var(--muted); }
-
-  .bar-wrap { background: #e8edf4; border-radius: 6px; height: 10px; overflow: hidden; min-width: 70px; }
-  .bar-fill { height: 100%; border-radius: 6px; }
-
-  /* Striscia del ritmo di pagamento: ogni tacca è una fattura, collocata
-     sui giorni impiegati per incassarla. */
-  .ritmo { display: block; }
-
-  .toolbar { background: #fff; border-bottom: 1px solid var(--border); padding: 12px 40px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  .filtro { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-  .filtro button { background: #fff; border: 0; border-right: 1px solid var(--border); padding: 6px 12px; font-family: inherit; font-size: .84rem; color: var(--text); cursor: pointer; }
-  .filtro button:last-child { border-right: 0; }
-  .filtro button[aria-pressed="true"] { background: var(--primary); color: #fff; font-weight: 600; }
-  .filtro-label { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-right: 2px; }
-  .spacer { flex: 1; }
-
-  .btn { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 15px; font-family: inherit; font-size: .87rem; font-weight: 600; cursor: pointer; }
-  .btn:hover { background: #2470bd; }
-  .btn.ghost { background: #fff; color: var(--primary); border: 1px solid var(--border); }
-  .btn.ghost:hover { background: var(--light); }
-  .btn.danger { background: #fff; color: var(--danger); border: 1px solid #f0c4c1; }
-  .btn.danger:hover { background: #fdecea; }
-  .btn:disabled { opacity: .5; cursor: not-allowed; }
-
-  .drop { border: 2px dashed var(--border); border-radius: 12px; background: #fff; padding: 40px 24px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
-  .drop:hover, .drop.over { border-color: var(--accent); background: #f6faff; }
-  .drop .big { font-size: 1.15rem; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
-  .drop .small { font-size: .88rem; color: var(--muted); }
-  .drop .mapping { margin-top: 14px; font-size: .82rem; color: var(--muted); }
-
-  .sel-soc { background: #eef4ff; border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 12px 16px; margin-bottom: 14px; }
-  .sel-soc label { display: block; font-size: .88rem; margin-bottom: 7px; }
-  .sel-soc select { min-width: 260px; }
-  .gate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px;
-          background: linear-gradient(150deg, var(--primary) 0%, #16304f 60%, #101f33 100%); }
-  /* Senza questa riga l'attributo hidden viene vinto dal display:grid e la
-     schermata, pur invisibile, continua a intercettare i clic. */
-  .gate[hidden] { display: none; }
-  .gate-box { width: 100%; max-width: 380px; background: #fff; border-radius: 14px; padding: 28px 28px 22px;
-              box-shadow: 0 24px 60px rgba(0,0,0,.3); }
-  .marchio-riga { display: flex; align-items: center; gap: 14px; }
-  .marchio-testo h1 { font-size: 1.9rem; font-weight: 700; letter-spacing: -.01em; margin: 0; }
-  .marchio-testo h1 span { color: #7fd4c1; }
-  .motto { font-size: .82rem; font-style: italic; opacity: .72; margin: 2px 0 0; }
-  .gate-marchio { font-size: 1.3rem; font-weight: 700; color: var(--primary); }
-  .gate-logo { margin-bottom: 12px; }
-  .gate-sotto { font-size: .78rem; font-style: italic; color: var(--accent);
-                font-weight: 600; margin-bottom: 20px; }
-  .gate-campo { display: block; margin-bottom: 13px; }
-  .gate-campo span { display: block; font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
-  .gate-campo input { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
-                      font-family: inherit; font-size: .95rem; }
-  .gate-nota { font-size: .78rem; color: var(--muted); margin-top: 14px; line-height: 1.5; }
-  .barra-utente { display: flex; align-items: center; gap: 10px; font-size: .8rem; }
-  .vuoto { text-align: center; padding: 40px 20px; color: var(--muted); }
-  input[type=search], select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: .87rem; background: #fff; color: var(--text); }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-  footer { text-align: center; padding: 24px 20px 40px; font-size: .8rem; color: var(--muted); }
-
-  /* ---------------------------- pannello di lettura ---------------------- */
-  .pannello { background: var(--card); border-radius: 12px; padding: 18px 20px; margin-bottom: 22px;
-              box-shadow: 0 2px 8px rgba(0,0,0,.06); border-top: 4px solid var(--primary); }
-  .overview { border-bottom: 1px solid var(--border); padding-bottom: 13px; margin-bottom: 4px; }
-  .ov-titolo { font-size: .78rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
-               font-weight: 700; margin-bottom: 9px; }
-  .ov-dati { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: .87rem; color: var(--muted); }
-  .ov-dati b { color: var(--primary); font-size: 1.02rem; font-weight: 700; }
-  .ov-rosso b { color: var(--danger); }
-  .letture { display: grid; gap: 0; }
-  .lettura { border-left: 3px solid var(--accent); padding: 13px 0 13px 15px; margin-top: 13px;
-             font-size: .9rem; line-height: 1.62; background: none; border-radius: 0; }
-  .lettura + .lettura { border-top: 1px solid var(--border); }
-  .lettura strong:first-child { color: var(--primary); display: block; margin-bottom: 2px; }
-  .lettura.warn-box { border: 0; border-left: 3px solid var(--accent2); }
-  .lettura.warn-box strong:first-child { color: #b9770e; }
-  .lettura.evolution-box { border: 0; border-left: 3px solid var(--accent3); }
-  .lettura.evolution-box strong:first-child { color: #1a6b35; }
-  .lettura.insight { border: 0; border-left: 3px solid var(--accent); }
-
-  @media (max-width: 900px) {
-    header, nav.tabs, .toolbar { padding-left: 16px; padding-right: 16px; }
-    .chart-row { grid-template-columns: 1fr; }
+  .marchio-riga { padding: 0 0 10px; }
+  .nav {
+    flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 2px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
   }
-  /* ------------------------------- iPhone -------------------------------- */
-  @media (max-width: 520px) {
-    html { -webkit-text-size-adjust: 100%; }
-    body { font-size: 15px; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav button { width: auto; white-space: nowrap; padding: 10px 13px; border-radius: var(--r-md) var(--r-md) 0 0; }
+  .nav-gruppo, .lato-piede { display: none; }
+  .cima { padding: 14px 18px; position: static; }
+  .container { padding: 18px 16px 50px; }
+  .chart-row { grid-template-columns: 1fr; }
+}
 
-    /* La testata occupava metà schermo prima di mostrare un dato: qui si
-       comprime al minimo indispensabile, marchio e stato dell'archivio. */
-    header { padding: 12px 14px 10px; }
-    .marchio-riga { gap: 10px; }
-    .marchio-riga svg { width: 38px; height: 38px; }
-    .marchio-testo h1 { font-size: 1.32rem; }
-    .motto { font-size: .72rem; }
-    #sottotitolo { display: none; }   /* ripetuto nell'overview di ogni sezione */
+/* ---------------------------------------------------------------- iPhone */
+@media (max-width: 560px) {
+  body { font-size: 15px; }
+  .lato { padding: 10px 12px 0; }
+  .marchio-riga { gap: 9px; padding-bottom: 8px; }
+  .marchio-riga svg { width: 34px; height: 34px; }
+  .marchio-testo h1 { font-size: 1.05rem; }
+  .motto { font-size: .66rem; }
+  .nav button { font-size: .84rem; padding: 10px 11px; min-height: 44px; }
 
-    /* I badge scorrono su una riga sola invece di impilarsi su tre. */
-    .badges { flex-wrap: nowrap; overflow-x: auto; margin-top: 9px; padding-bottom: 2px;
-              -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-    .badges::-webkit-scrollbar { display: none; }
-    .badge { font-size: .71rem; padding: 3px 9px; white-space: nowrap; flex: 0 0 auto; }
+  /* Al telefono l'intestazione non deve mangiare mezzo schermo: resta il
+     minimo per sapere dove si è, il resto è già nell'overview di sezione.
+     La colonna scorre via invece di restare fissa, così i grafici hanno
+     tutta l'altezza disponibile. */
+  .lato { position: static; }
+  .cima { padding: 10px 14px 12px; }
+  .cima h2 { font-size: 1.05rem; }
+  .cima .occhiello { display: none; }
+  .badges { display: none; }
+  #toolbar .kpi-sub { display: none; }
 
-    nav.tabs { padding: 0 8px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-    nav.tabs::-webkit-scrollbar { display: none; }
-    nav.tabs button { padding: 11px 10px; font-size: .82rem; }
+  .filtri { width: 100%; }
+  .filtro { flex-wrap: wrap; width: 100%; }
+  .filtro button { flex: 1 1 auto; min-height: 44px; font-size: .83rem; padding: 10px 11px; }
+  .filtro-label { display: none; }
+  .spacer { display: none; }
 
-    /* I gruppi di filtri andavano oltre il bordo: ora vanno a capo. */
-    .toolbar { padding: 9px 12px; gap: 7px; }
-    .filtro { flex-wrap: wrap; width: 100%; }
-    /* 44px è la dimensione minima raccomandata per un bersaglio tattile. */
-    .filtro button { flex: 1 1 auto; padding: 11px 10px; font-size: .84rem;
-                     border-bottom: 1px solid var(--border); min-height: 44px; }
-    .filtro-label { display: none; }   /* i pulsanti si spiegano da soli */
-    .toolbar .kpi-sub { width: 100%; font-size: .74rem; }
-    .toolbar .spacer { display: none; }
+  .container { padding: 14px 12px 46px; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 11px; }
+  .kpi-card { padding: 13px 13px; gap: 10px; flex-direction: column; }
+  .kpi-icona { flex: 0 0 34px; height: 34px; border-radius: 10px; }
+  .kpi-icona svg { width: 17px; height: 17px; }
+  .kpi-value { font-size: 1.18rem; }
+  .kpi-label { font-size: .72rem; }
+  .kpi-sub { font-size: .73rem; }
 
-    .container { padding: 16px 12px 50px; }
-    h2 { font-size: 1.12rem; margin-bottom: 14px; }
-    h3 { font-size: .82rem; }
+  .fascia-grid { grid-template-columns: 1fr 1fr; gap: 11px; }
+  .fascia { padding: 14px; flex-direction: column; align-items: flex-start; gap: 9px; }
+  .fascia-icona { flex: 0 0 34px; height: 34px; }
+  .fascia-icona svg { width: 17px; height: 17px; }
+  .fascia-valore { font-size: 1.2rem; }
+  .fascia-label { font-size: .72rem; }
+  .fascia-sub { font-size: .71rem; }
 
-    .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-    .kpi-card { padding: 13px 14px; border-left-width: 3px; }
-    .kpi-value { font-size: 1.28rem; }
-    /* Sotto gli 11px la lettura al telefono diventa faticosa. */
-    .kpi-label { font-size: .72rem; letter-spacing: .03em; }
-    .kpi-sub { font-size: .76rem; }
-    .didascalia, .cap { font-size: .76rem; }
-    th { font-size: .72rem; }
+  .pannello { padding: 16px 16px; border-radius: var(--r-lg); }
+  .ov-dati { gap: 6px 16px; font-size: .81rem; }
+  .ov-dati b { font-size: .97rem; }
+  .lettura { font-size: .86rem; padding-left: 13px; }
 
-    .pannello { padding: 15px 16px; border-radius: 10px; }
-    .ov-dati { gap: 4px 14px; font-size: .82rem; }
-    .ov-dati b { font-size: .95rem; }
-    .lettura { font-size: .87rem; padding-left: 12px; }
+  .chart-card { padding: 15px 14px; }
+  .chart-wrap { height: 235px; }
+  .chart-wrap-lg { height: 265px; }
+  .tab-scroll { margin: 0 -14px; padding: 0 14px; }
+  table { font-size: .82rem; }
+  th { font-size: .68rem; padding: 9px 10px; }
+  td { padding: 10px 10px; }
+  .cliente-cell { max-width: 160px; }
 
-    .chart-card { padding: 15px 13px; border-radius: 10px; }
-    .chart-wrap { height: 230px; }
-    .chart-wrap-lg { height: 270px; }
+  .btn { padding: 12px 17px; min-height: 44px; }
+  .sel-soc select, input[type=search], select { width: 100%; min-width: 0; font-size: 16px; }
+  .drop { padding: 28px 14px; }
+}
 
-    /* Le tabelle restano leggibili scorrendo, senza rimpicciolire il testo
-       fino a renderlo inutile. */
-    .tab-scroll { margin: 0 -13px; padding: 0 13px; -webkit-overflow-scrolling: touch; }
-    table { font-size: .82rem; }
-    th { padding: 9px 9px; }
-    td { padding: 9px 9px; }
-    .cliente-cell { max-width: 165px; }
-
-    .btn { padding: 11px 16px; }          /* pollice, non puntatore */
-    /* Anche i filtri interni alle sezioni, non solo quelli della barra. */
-    .chart-card .filtro { flex-wrap: wrap; width: 100%; }
-    .chart-card .filtro button { flex: 1 1 40%; }
-    .drop { padding: 26px 14px; }
-    .sel-soc select, input[type=search], select { width: 100%; min-width: 0; font-size: 16px; }
-    /* 16px evita lo zoom automatico di Safari sui campi al focus. */
-  }
-
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
@@ -256,61 +381,75 @@
   </form>
 </div>
 
-<header>
-  <div class="marchio-riga">
-    <div id="logo"></div>
-    <div class="marchio-testo">
-      <h1>ST<span>Incassi</span></h1>
-      <p class="motto">Gli incassi, prima che diventino cazzi</p>
-    </div>
-  </div>
-  <p id="sottotitolo">Analisi delle proforma, dei tempi di incasso e del comportamento dei clienti</p>
-  <div class="badges" id="badges"></div>
-</header>
+<div class="app">
 
-<nav class="tabs" id="tabs" role="tablist"></nav>
-
-<div class="toolbar" id="toolbar" hidden></div>
-
-<div class="container">
-  <div id="benvenuto">
-    <div class="section">
-      <h2>📂 Carica gli export del gestionale</h2>
-      <div class="sel-soc">
-        <label for="societaUpload"><strong>Ragione sociale</strong> — a quale studio appartiene questo export?</label>
-        <select id="societaUpload"></select>
-      </div>
-      <div class="drop" id="drop" role="button" tabindex="0">
-        <div class="big">Trascina qui i file, oppure fai clic per sceglierli</div>
-        <div class="small">Formati accettati: .xlsx, .xls e .csv — puoi caricarne più di uno in una volta</div>
-        <div class="mapping">Il sezionale si ricava dal numero documento (<code>860/C</code> → sezionale C)
-          e resta all'interno della ragione sociale scelta qui sopra.</div>
-      </div>
-      <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple hidden>
-      <div id="esito"></div>
-      <div class="insight">
-        <strong>Come funziona.</strong> I file restano sul tuo computer: l'elaborazione avviene interamente nel
-        browser e nulla viene inviato in rete. L'archivio viene conservato in locale, così alla riapertura
-        ritrovi i dati senza ricaricarli. Ricaricando lo stesso periodo le righe non si duplicano: i documenti
-        già presenti vengono aggiornati con le nuove date di incasso.
-        Le due ragioni sociali restano archivi separati e non vengono mai sommate fra loro.
+  <aside class="lato">
+    <div class="marchio-riga">
+      <div id="logo"></div>
+      <div class="marchio-testo">
+        <h1>ST<span>Incassi</span></h1>
+        <p class="motto">Gli incassi, prima che diventino cazzi</p>
       </div>
     </div>
-  </div>
+    <nav class="nav" id="tabs" role="tablist"></nav>
+    <div class="lato-piede" id="latoPiede"></div>
+  </aside>
 
-  <div class="section" id="sez-panoramica" hidden></div>
-  <div class="section" id="sez-mensile" hidden></div>
-  <div class="section" id="sez-tempi" hidden></div>
-  <div class="section" id="sez-credito" hidden></div>
-  <div class="section" id="sez-clienti" hidden></div>
-  <div class="section" id="sez-attivita" hidden></div>
-  <div class="section" id="sez-confronto" hidden></div>
-  <div class="section" id="sez-archivio" hidden></div>
+  <div class="principale">
+    <div class="cima" id="cima" hidden>
+      <div class="cima-riga">
+        <div>
+          <div class="occhiello" id="cimaOcchiello"></div>
+          <h2 id="cimaTitolo"></h2>
+        </div>
+        <div class="filtri" id="toolbar"></div>
+      </div>
+      <div class="badges" id="badges"></div>
+    </div>
+
+    <div class="container">
+      <div id="benvenuto">
+        <div class="section">
+          <div class="chart-card">
+            <h3>Carica gli export del gestionale</h3>
+            <p class="kpi-sub" style="margin:2px 0 16px">Da qui entrano i dati: il resto dell'analisi si costruisce da solo.</p>
+            <div class="sel-soc">
+              <label for="societaUpload"><strong>Ragione sociale</strong> — a quale studio appartiene questo export?</label>
+              <select id="societaUpload"></select>
+            </div>
+            <div class="drop" id="drop" role="button" tabindex="0">
+              <div class="big">Trascina qui i file, oppure fai clic per sceglierli</div>
+              <div class="small">Formati accettati: .xlsx, .xls e .csv — puoi caricarne più di uno in una volta</div>
+              <div class="mapping">Il sezionale si ricava dal numero documento (<code>860/C</code> → sezionale C)
+                e resta all'interno della ragione sociale scelta qui sopra.</div>
+            </div>
+            <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple hidden>
+            <div id="esito"></div>
+            <div class="insight">
+              <strong>Come funziona.</strong> I file vengono letti nel browser e archiviati online, così restano
+              consultabili da chiunque abbia un accesso. Ricaricando lo stesso periodo le righe non si duplicano:
+              i documenti già presenti vengono aggiornati con le nuove date di incasso.
+              Le due ragioni sociali restano archivi separati e non vengono mai sommate fra loro.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="sez-panoramica" hidden></div>
+      <div class="section" id="sez-mensile" hidden></div>
+      <div class="section" id="sez-tempi" hidden></div>
+      <div class="section" id="sez-credito" hidden></div>
+      <div class="section" id="sez-clienti" hidden></div>
+      <div class="section" id="sez-attivita" hidden></div>
+      <div class="section" id="sez-confronto" hidden></div>
+      <div class="section" id="sez-costi" hidden></div>
+      <div class="section" id="sez-margini" hidden></div>
+      <div class="section" id="sez-archivio" hidden></div>
+    </div>
+
+    <footer><span id="footer-utente"></span><span id="footer-info"></span></footer>
+  </div>
 </div>
-
-<footer>
-  <span id="footer-utente"></span><span id="footer-info"></span>
-</footer>
 
 <script>
 /* =====================================================================
@@ -512,16 +651,22 @@ let db = null, auth = null, utente = null;
    naturalmente caricati e consultati. */
 const BLOCCO = (r) => `${r.societa}_${r.anno_doc || r.data_doc.slice(0, 4)}_${r.sezionale}`;
 
+const BLOCCO_COSTI = (r) => `costi_${r.anno}`;
+
 const store = {
-  righe: [], file: [], persistente: true, sincronizzato: false,
+  righe: [], file: [], costi: [], fileCosti: [], persistente: true, sincronizzato: false,
   carica() {
     try {
       const raw = localStorage.getItem(CHIAVE_ARCHIVIO);
-      if (raw) { const d = JSON.parse(raw); this.righe = d.righe || []; this.file = d.file || []; }
+      if (raw) {
+        const d = JSON.parse(raw);
+        this.righe = d.righe || []; this.file = d.file || [];
+        this.costi = d.costi || []; this.fileCosti = d.fileCosti || [];
+      }
     } catch (e) { this.persistente = false; }
   },
   salva() {
-    try { localStorage.setItem(CHIAVE_ARCHIVIO, JSON.stringify({ righe: this.righe, file: this.file })); }
+    try { localStorage.setItem(CHIAVE_ARCHIVIO, JSON.stringify({ righe: this.righe, file: this.file, costi: this.costi, fileCosti: this.fileCosti })); }
     catch (e) { this.persistente = false; }
   },
 
@@ -529,14 +674,20 @@ const store = {
      l'app mostra qualcosa anche prima che la rete risponda. */
   async scarica() {
     if (!ONLINE || !utente) return;
-    const [blocchi, caricamenti] = await Promise.all([
+    const [blocchi, caricamenti, blocchiCosti, fileCosti] = await Promise.all([
       db.collection('archivio').get(),
-      db.collection('caricamenti').orderBy('caricatoIl', 'desc').limit(80).get()
+      db.collection('caricamenti').orderBy('caricatoIl', 'desc').limit(80).get(),
+      db.collection('costi').get(),
+      db.collection('caricamentiCosti').orderBy('caricatoIl', 'desc').limit(40).get()
     ]);
     const righe = [];
     blocchi.forEach(d => { const v = d.data(); if (Array.isArray(v.righe)) righe.push(...v.righe); });
     this.righe = righe;
     this.file = caricamenti.docs.map(d => d.data());
+    const rc = [];
+    blocchiCosti.forEach(d => { const v = d.data(); if (Array.isArray(v.righe)) rc.push(...v.righe); });
+    this.costi = rc;
+    this.fileCosti = fileCosti.docs.map(d => d.data());
     this.sincronizzato = true;
     this.salva();
   },
@@ -578,7 +729,7 @@ const store = {
     this.salva();
     return { nuove, aggiornate };
   },
-  svuota() { this.righe = []; this.file = []; try { localStorage.removeItem(CHIAVE_ARCHIVIO); } catch (e) {} },
+  svuota() { this.righe = []; this.file = []; this.costi = []; this.fileCosti = []; try { localStorage.removeItem(CHIAVE_ARCHIVIO); } catch (e) {} },
   /* Rimuove le righe di un singolo caricamento e riscrive i blocchi toccati. */
   async eliminaImport(idImport) {
     const daTogliere = this.righe.filter(r => r.imp === idImport);
@@ -605,12 +756,44 @@ const store = {
     return { rimosse: daTogliere.length };
   },
 
+  /* I costi si sostituiscono per anno: un nuovo file dello stesso anno
+     rimpiazza il precedente invece di sommarcisi. */
+  aggiungiCosti(analisi) {
+    const anni = new Set(analisi.righe.map(r => r.anno));
+    const prima = this.costi.filter(r => anni.has(r.anno)).length;
+    this.costi = this.costi.filter(r => !anni.has(r.anno));
+    analisi.righe.forEach(r => { r.imp = analisi.caricatoIl; r.impFile = analisi.nomeFile; });
+    this.costi.push(...analisi.righe);
+    this.fileCosti.unshift({ nomeFile: analisi.nomeFile, anni: analisi.anni,
+      righe: analisi.righe.length, caricatoIl: analisi.caricatoIl, scarti: analisi.scarti.length });
+    this.anniCostiToccati = [...anni];
+    this.salva();
+    return { nuove: analisi.righe.length, sostituite: prima };
+  },
+
+  async sincronizzaCosti(analisi) {
+    if (!ONLINE || !utente) return;
+    const lotto = db.batch();
+    (this.anniCostiToccati || []).forEach(a => {
+      lotto.set(db.collection('costi').doc(`costi_${a}`), {
+        anno: a, righe: this.costi.filter(r => r.anno === a),
+        aggiornatoIl: new Date().toISOString(), aggiornatoDa: utente.email
+      });
+    });
+    lotto.set(db.collection('caricamentiCosti').doc(), {
+      nomeFile: analisi.nomeFile, anni: analisi.anni, righe: analisi.righe.length,
+      caricatoIl: analisi.caricatoIl, scarti: analisi.scarti.length, caricatoDa: utente.email
+    });
+    await lotto.commit();
+  },
+
   async svuotaOnline() {
     if (!ONLINE || !utente) return;
-    const [a, c] = await Promise.all([db.collection('archivio').get(), db.collection('caricamenti').get()]);
+    const [a, c, k, kc] = await Promise.all([
+      db.collection('archivio').get(), db.collection('caricamenti').get(),
+      db.collection('costi').get(), db.collection('caricamentiCosti').get()]);
     const lotto = db.batch();
-    a.forEach(d => lotto.delete(d.ref));
-    c.forEach(d => lotto.delete(d.ref));
+    [a, c, k, kc].forEach(q => q.forEach(d => lotto.delete(d.ref)));
     await lotto.commit();
   }
 };
@@ -856,9 +1039,59 @@ const SELETTORE_SOCIETA = (id) => `<div class="sel-soc">
   <label for="${id}"><strong>Ragione sociale</strong> — a quale studio appartiene questo export?</label>
   <select id="${id}"></select></div>`;
 
+/* Icone: un solo tratto, spessore uniforme, disegnate su griglia 24.
+   Servono a rendere riconoscibile una scheda a colpo d'occhio, non a
+   decorare: se non c'è corrispondenza si usa il grafico generico. */
+const ICONE = {
+  euro:     '<path d="M15 7a5 5 0 1 0 0 10M4 10h8M4 14h8"/>',
+  tempo:    '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  clienti:  '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.5a3 3 0 0 1 0 5.6M18 20c0-2.3-.9-4-2.2-4.9"/>',
+  carta:    '<rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M2.5 10h19M6 15h4"/>',
+  allarme:  '<path d="M12 3.5 21 19H3z"/><path d="M12 10v3.5M12 16.4v.1"/>',
+  crescita: '<path d="M3 17.5 9.5 11l4 4L21 7"/><path d="M21 12V7h-5"/>',
+  calendario:'<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/>',
+  documento:'<path d="M6 3.5h8l4 4V20a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 6 20z"/><path d="M14 3.5V8h4M9 13h6M9 16.5h4"/>',
+  torta:    '<path d="M12 3.5v8.5h8.5A8.5 8.5 0 0 0 12 3.5z"/><path d="M11 20.5A8.5 8.5 0 0 1 10 3.6"/>',
+  archivio: '<path d="M3.5 7.5h17v11a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z"/><path d="M3 4.5h18v3H3zM10 12h4"/>',
+  scambio:  '<path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5"/>',
+  grafico:  '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'
+};
+const ico = (nome, dim = 20) =>
+  `<svg width="${dim}" height="${dim}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+     stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONE[nome] || ICONE.grafico}</svg>`;
+
+/* L'icona si deduce dall'etichetta: evita di doverla indicare a ogni
+   chiamata e resta coerente fra sezioni che parlano della stessa cosa. */
+function icoDa(label) {
+  const t = String(label).toLowerCase();
+  if (/scadut|critic|oltre 90|monitorare|rischio/.test(t)) return 'allarme';
+  if (/tempo|giorni|anzianit|mediana|rid/.test(t)) return 'tempo';
+  if (/client|debitor/.test(t)) return 'clienti';
+  if (/credito|aperto|incassare|esposizion/.test(t)) return 'carta';
+  if (/proforma|documenti|posizioni/.test(t)) return 'documento';
+  if (/crescita|variazione|ritenzione/.test(t)) return 'crescita';
+  if (/imponibile|ticket|incassato|totale|lordo/.test(t)) return 'euro';
+  if (/period|anno|mese/.test(t)) return 'calendario';
+  if (/eccellent|affidabil/.test(t)) return 'torta';
+  return 'grafico';
+}
+
 const kpi = (label, valore, sub, tono, delta) =>
-  `<div class="kpi-card ${tono || ''}"><div class="kpi-label">${esc(label)}</div>
-   <div class="kpi-value">${valore}</div>${sub ? `<div class="kpi-sub">${sub}</div>` : ''}${delta || ''}</div>`;
+  `<div class="kpi-card ${tono || ''}">
+     <div class="kpi-icona">${ico(icoDa(label))}</div>
+     <div class="kpi-testo">
+       <div class="kpi-label">${esc(label)}</div>
+       <div class="kpi-value">${valore}</div>
+       ${sub ? `<div class="kpi-sub">${sub}</div>` : ''}${delta || ''}
+     </div></div>`;
+
+/* Fascia piena: solo per i quattro numeri di testa di una sezione. */
+const fascia = (colore, icona, label, valore, sub) =>
+  `<div class="fascia ${colore}">
+     <div class="fascia-icona">${ico(icona, 22)}</div>
+     <div><div class="fascia-label">${esc(label)}</div>
+     <div class="fascia-valore">${valore}</div>
+     ${sub ? `<div class="fascia-sub">${sub}</div>` : ''}</div></div>`;
 
 const barra = (quota, colore) =>
   `<div class="bar-wrap"><div class="bar-fill" style="width:${Math.max(2, Math.min(100, quota))}%;background:${colore}"></div></div>`;
@@ -893,27 +1126,338 @@ function tabella(colonne, righe, opts = {}) {
    si arrabbia quando il credito scaduto pesa. Il gioco di parole sta nel
    fatto che gli incassi, se restano fermi, diventano incazzi.
    --------------------------------------------------------------------- */
-function logoSVG(arrabbiato, dim = 52) {
-  const bordo = arrabbiato ? '#c0392b' : '#27ae60';
-  const bocca = arrabbiato
-    ? '<path d="M20 40 Q26 34 32 40" fill="none" stroke="#1a3a5c" stroke-width="2.6" stroke-linecap="round"/>'
-    : '<path d="M20 35 Q26 42 32 35" fill="none" stroke="#1a3a5c" stroke-width="2.6" stroke-linecap="round"/>';
-  const sopracciglia = arrabbiato
-    ? '<path d="M16 23 L23 26 M36 23 L29 26" stroke="#1a3a5c" stroke-width="2.4" stroke-linecap="round"/>'
-    : '';
+function logoSVG(arrabbiato, dim = 44) {
+  /* Anello di stato: mostra la quota effettivamente incassata. Si chiude e
+     resta verde quando le cose vanno bene, si spezza e vira al rosso quando
+     lo scaduto pesa. Comunica un dato, non solo un umore — e alle dimensioni
+     piccole resta leggibile, che una faccia non farebbe. */
+  const stato = arrabbiato ? '#ef4d5a' : '#17b877';
+  const quota = arrabbiato ? 0.44 : 0.9;
+  const r = 20, C = 2 * Math.PI * r;
   return `<svg width="${dim}" height="${dim}" viewBox="0 0 52 52" role="img"
-      aria-label="STIncassi - ${arrabbiato ? 'credito scaduto rilevante' : 'incassi in ordine'}">
-    <rect x="1.5" y="1.5" width="49" height="49" rx="13" fill="#ffffff" opacity=".97"/>
-    <rect x="1.5" y="1.5" width="49" height="49" rx="13" fill="none" stroke="${bordo}" stroke-width="3"/>
-    <path d="M13 9 h26 v30 l-3.25 3 -3.25 -3 -3.25 3 -3.25 -3 -3.25 3 -3.25 -3 -3.25 3 -3.25 -3 z"
-          fill="#eef4ff" stroke="#1a3a5c" stroke-width="2" stroke-linejoin="round"/>
-    <text x="26" y="20" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif"
-          font-size="9" font-weight="700" fill="#2e86de">&#8364;</text>
-    <circle cx="20" cy="29" r="2.3" fill="#1a3a5c"/>
-    <circle cx="32" cy="29" r="2.3" fill="#1a3a5c"/>
-    ${sopracciglia}
-    ${bocca}
+      aria-label="STIncassi — ${arrabbiato ? 'credito scaduto rilevante' : 'incassi in ordine'}">
+    <defs><linearGradient id="lgST${dim}${arrabbiato}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4d8bfb"/><stop offset="1" stop-color="#2a5fd6"/>
+    </linearGradient></defs>
+    <rect width="52" height="52" rx="14" fill="url(#lgST${dim}${arrabbiato})"/>
+    <circle cx="26" cy="26" r="${r}" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="5"/>
+    <circle cx="26" cy="26" r="${r}" fill="none" stroke="${stato}" stroke-width="5" stroke-linecap="round"
+            stroke-dasharray="${(C * quota).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 26 26)"/>
+    <text x="26" y="33.5" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
+          font-size="21" font-weight="700" fill="#ffffff">&#8364;</text>
   </svg>`;
+}
+
+/* =====================================================================
+   COSTI
+   Il file di suddivisione costi ha un foglio per anno. Ogni riga è un
+   costo con: fornitore, tipologia, data, importo, e la ripartizione su
+   due blocchi di colonne — i gruppi di lavoro (costo diretto) e i costi
+   comuni, questi ultimi divisi per persona secondo quote fisse.
+
+   L'impaginazione cambia fra un anno e l'altro (riga di intestazione
+   diversa, gruppi diversi), quindi la struttura si riconosce dai
+   contenuti e non da posizioni fisse.
+   ===================================================================== */
+
+/* Corrispondenza fra i gruppi dei costi e i sezionali del fatturato.
+   Studio EC compare fra i costi di ST Consulting ma è una ragione sociale
+   separata: resta nei costi e si esclude dal confronto con i ricavi. */
+const GRUPPI_COSTI = {
+  TECNACISSE:   { nome: 'TecnAccise',   sezionale: 'T', societa: 'ST' },
+  TECNACCISE:   { nome: 'TecnAccise',   sezionale: 'T', societa: 'ST' },
+  STUDIRIUNITI: { nome: 'Studiriuniti', sezionale: 'C', societa: 'ST' },
+  PAGHE:        { nome: 'Paghe',        sezionale: 'P', societa: 'ST' },
+  DEFINA:       { nome: 'Defina',       sezionale: 'D', societa: 'ST' },
+  'STUDIO EC':  { nome: 'Studio EC',    sezionale: null, societa: 'ST', fuoriMatch: true },
+  CRI:          { nome: 'CRI',          sezionale: null, societa: 'ST', fuoriMatch: true }
+};
+const nomeGruppo = (g) => (GRUPPI_COSTI[g] || {}).nome || g;
+const sezionaleDiGruppo = (g) => (GRUPPI_COSTI[g] || {}).sezionale || null;
+
+/* Corrispondenza persona → gruppo di lavoro per i costi comuni.
+   Finché resta vuota i costi comuni non vengono attribuiti ai gruppi:
+   restano un blocco a sé, che è più onesto di una ripartizione inventata.
+   Formato: { LUK: { STUDIRIUNITI: 0.6, TECNACISSE: 0.4 }, ... } */
+const QUOTE_PERSONE = {};
+const personeMappate = () => Object.keys(QUOTE_PERSONE).length > 0;
+
+const NORM = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
+const SU = (s) => NORM(s).toUpperCase();
+
+/* Righe che non sono costi di gestione: distribuzione di utili ai soci.
+   Restano in archivio come voce separata, fuori dai confronti. */
+const RE_UTILI = /ACCONTI?\s+UTILI|DISTRIBUZIONE\s+UTILI/i;
+/* Totali del personale riportati sotto la riga TOTALE. */
+const RE_TOT_DIP = /TOTALE\s+DIPENDENTI/i;
+/* Voci di costo del personale. Nel 2026 stanno in elenco come righe
+   normali, nel 2025 solo nei totali: riconoscerle in entrambi i casi rende
+   confrontabile il dato fra gli anni. */
+const RE_PERSONALE = /DIPENDENT|COSTO DEL PERSONALE|STIPEND|SALARI|TREDICESIM/i;
+
+const SIGLE_GRUPPO = [
+  [/\bSR\b|STUDIRIUNITI|STUDI RIUNITI/i, 'STUDIRIUNITI'],
+  [/\bTE\b|\bTN\b|TECNACC?ISSE|TECNACCISE/i, 'TECNACISSE'],
+  [/\bPA\b|PAGHE/i, 'PAGHE'],
+  [/\bEC\b|STUDIO EC/i, 'STUDIO EC'],
+  [/DEFINA/i, 'DEFINA']
+];
+function gruppoDaTesto(t) {
+  const s = SU(t);
+  for (const [re, g] of SIGLE_GRUPPO) if (re.test(s)) return g;
+  return null;
+}
+
+/**
+ * Legge un file di suddivisione costi.
+ * Restituisce { nomeFile, anni, righe, avvisi, scarti, caricatoIl }.
+ */
+async function leggiCosti(file) {
+  // raw:true restituisce i numeri come numeri: con la formattazione
+  // testuale arriverebbero in stile americano e verrebbero letti male.
+  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true, raw: true });
+  const righe = [];
+  const avvisi = [];
+  const scarti = [];
+  const anni = [];
+
+  wb.SheetNames.forEach((nomeFoglio) => {
+    const anno = Number(String(nomeFoglio).trim());
+    if (!(anno >= 2000 && anno <= 2100)) return;      // solo fogli-anno
+    const m = XLSX.utils.sheet_to_json(wb.Sheets[nomeFoglio], { header: 1, defval: null, blankrows: true, raw: true });
+    if (!m.length) return;
+
+    // 1. riga di intestazione: quella che contiene "Fornitore" e un "Importo"
+    const iHead = m.findIndex(r => (r || []).some(c => /^fornitore$/i.test(NORM(c)))
+                                && (r || []).some(c => /importo/i.test(NORM(c))));
+    if (iHead === -1) { avvisi.push(`Foglio ${anno}: intestazione non riconosciuta, saltato.`); return; }
+    const head = m[iHead] || [];
+    const sopra = m[iHead - 1] || [];
+
+    const iFornitore = head.findIndex(c => /^fornitore$/i.test(NORM(c)));
+    const iTipologia = head.findIndex(c => /tipologia/i.test(NORM(c)));
+    const iData = head.findIndex(c => /^data$/i.test(NORM(c)));
+    const iImporto = head.findIndex(c => /importo/i.test(NORM(c)));
+
+    // 2. Colonne di ripartizione. Il nome può stare nella riga di
+    //    intestazione oppure in quella sopra, quando lì c'è la quota.
+    //    I gruppi e i costi comuni sono due blocchi separati da una colonna
+    //    vuota: il marcatore "COSTI COMUNI" non è allineato alla prima
+    //    colonna del blocco, quindi non si può usare come confine.
+    const IGNORA = /^nota$|^data reg|^n\. ?prot|^tipo doc|^num\. ?doc|^da verificare$|^costi comuni$/i;
+    const colonne = [];
+    let blocco = 0, vuote = 0;
+    for (let c = iImporto + 1; c < Math.max(head.length, sopra.length) + 2; c++) {
+      const hv = head[c] ?? null, sv = sopra[c] ?? null;
+      const numerico = typeof hv === 'number' || (hv !== null && hv !== '' && !isNaN(Number(hv)));
+      const nome = SU(numerico ? sv : hv);
+      if (!nome) {                       // colonna vuota: confine fra blocchi
+        if (++vuote === 1 && colonne.length) blocco = 1;
+        else if (vuote > 1) break;       // oltre il secondo blocco ci sono note
+        continue;
+      }
+      if (IGNORA.test(nome)) continue;
+      vuote = 0;
+      colonne.push({
+        c, nome, blocco,
+        quota: numerico ? Number(hv) : (typeof sv === 'number' ? sv : null),
+        comune: blocco === 1
+      });
+    }
+    if (!colonne.length) avvisi.push(`Foglio ${anno}: nessuna colonna di ripartizione riconosciuta.`);
+
+    // 4. righe di costo, fino alla riga TOTALE
+    let iTotale = m.length;
+    for (let r = iHead + 1; r < m.length; r++) {
+      if (/^totale$/i.test(NORM((m[r] || [])[iFornitore]))) { iTotale = r; break; }
+    }
+
+    let nAnno = 0;
+    for (let r = iHead + 1; r < iTotale; r++) {
+      const riga = m[r] || [];
+      const importo = numeroIt(riga[iImporto]);
+      const fornitore = NORM(riga[iFornitore]);
+      const tipologia = NORM(riga[iTipologia]);
+      if (!importo && !fornitore) continue;
+      if (!importo) { scarti.push({ foglio: anno, riga: r + 1, motivo: 'importo mancante o non numerico', fornitore }); continue; }
+
+      const perGruppo = {}, perPersona = {};
+      let sommaG = 0, sommaC = 0;
+      colonne.forEach(({ c, nome, comune }) => {
+        const v = numeroIt(riga[c]);
+        if (!v) return;
+        if (comune) { perPersona[nome] = (perPersona[nome] || 0) + v; sommaC += v; }
+        else { perGruppo[nome] = (perGruppo[nome] || 0) + v; sommaG += v; }
+      });
+
+      const tipo = RE_UTILI.test(tipologia) ? 'utili'
+                 : RE_PERSONALE.test(tipologia) ? 'personale' : 'gestione';
+      righe.push({
+        anno, fornitore, tipologia,
+        data: dataIso(riga[iData]),
+        importo: Math.round(importo * 100) / 100,
+        diretti: perGruppo, comuni: perPersona,
+        ripartito: Math.round((sommaG + sommaC) * 100) / 100,
+        tipo, origine: 'elenco'
+      });
+      nAnno++;
+    }
+
+    // 5. Personale: nel 2025 non è in elenco ma nei totali sotto la riga
+    //    TOTALE. Si recuperano quelle righe, che portano già il gruppo.
+    let recuperati = 0;
+    for (let r = iTotale + 1; r < m.length; r++) {
+      const riga = m[r] || [];
+      const et = NORM(riga[iTipologia]) || NORM(riga[iFornitore]) || NORM(riga[1]);
+      if (!RE_TOT_DIP.test(et)) continue;
+      const g = gruppoDaTesto(et.replace(/TOTALE\s+DIPENDENTI/i, ''));
+      // Fra i valori sulla riga si prende il maggiore: è la proiezione
+      // a fine anno, mentre l'altro è il progressivo a data.
+      const cand = riga.map(numeroIt).filter(v => v > 0);
+      const v = cand.length ? Math.max(...cand) : 0;
+      if (!g || !v) continue;
+      righe.push({
+        anno, fornitore: 'Personale', tipologia: `Costo del personale — ${nomeGruppo(g)}`,
+        data: `${anno}-12-31`, importo: Math.round(v * 100) / 100,
+        diretti: { [g]: Math.round(v * 100) / 100 }, comuni: {},
+        ripartito: Math.round(v * 100) / 100, tipo: 'personale', origine: 'totali'
+      });
+      recuperati++;
+    }
+    if (recuperati) {
+      avvisi.push(`Foglio ${anno}: recuperate ${recuperati} voci di costo del personale dai totali sotto la riga TOTALE.`);
+    }
+
+    anni.push({ anno, righe: nAnno, recuperati, colonne: colonne.map(x => x.nome) });
+  });
+
+  if (!righe.length) throw new Error(`${file.name}: nessun foglio-anno con dati di costo riconoscibili.`);
+  return { nomeFile: file.name, anni, righe, avvisi, scarti, caricatoIl: new Date().toISOString() };
+}
+
+/* Riconosce se un file caricato è una suddivisione costi anziché un
+   export di proforma, così l'utente non deve dichiararlo. */
+async function eFileCosti(file) {
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', raw: true });
+    return wb.SheetNames.some(n => {
+      const a = Number(String(n).trim());
+      if (!(a >= 2000 && a <= 2100)) return false;
+      const m = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: null, blankrows: false, raw: true });
+      return m.slice(0, 8).some(r => (r || []).some(c => /^fornitore$/i.test(NORM(c))));
+    });
+  } catch (e) { return false; }
+}
+
+/* ------------------------------- calcoli ------------------------------ */
+
+/* Somma per gruppo di lavoro. I costi comuni si attribuiscono solo se
+   esiste la corrispondenza persona → gruppo; altrimenti restano fuori e
+   vengono mostrati a parte. */
+function costiPerGruppo(righe) {
+  const acc = {};
+  const tocca = (g) => (acc[g] = acc[g] || { gruppo: g, diretti: 0, comuni: 0, personale: 0, totale: 0 });
+  let comuniNonAttribuiti = 0;
+
+  righe.forEach(r => {
+    if (r.tipo === 'utili') return;                 // non è costo di gestione
+    Object.entries(r.diretti || {}).forEach(([g, v]) => {
+      const e = tocca(g);
+      if (r.tipo === 'personale') e.personale += v; else e.diretti += v;
+      e.totale += v;
+    });
+    Object.entries(r.comuni || {}).forEach(([p, v]) => {
+      const quote = QUOTE_PERSONE[SU(p)];
+      if (!quote) { comuniNonAttribuiti += v; return; }
+      Object.entries(quote).forEach(([g, q]) => {
+        const e = tocca(g); e.comuni += v * q; e.totale += v * q;
+      });
+    });
+  });
+  return { gruppi: Object.values(acc).sort((a, b) => b.totale - a.totale), comuniNonAttribuiti };
+}
+
+function costiPerPersona(righe) {
+  const acc = {};
+  righe.forEach(r => {
+    if (r.tipo === 'utili') return;
+    Object.entries(r.comuni || {}).forEach(([p, v]) => { acc[p] = (acc[p] || 0) + v; });
+  });
+  return Object.entries(acc).map(([persona, importo]) => ({ persona, importo }))
+    .sort((a, b) => b.importo - a.importo);
+}
+
+function costiPerTipologia(righe, limite = 15) {
+  const acc = {};
+  righe.forEach(r => {
+    if (r.tipo === 'utili') return;
+    const k = r.tipologia || '—';
+    if (!acc[k]) acc[k] = { tipologia: k, importo: 0, voci: 0 };
+    acc[k].importo += r.importo; acc[k].voci++;
+  });
+  return Object.values(acc).sort((a, b) => b.importo - a.importo).slice(0, limite);
+}
+
+function costiPerFornitore(righe, limite = 20) {
+  const acc = {};
+  righe.forEach(r => {
+    if (r.tipo === 'utili') return;
+    const k = r.fornitore || '—';
+    if (!acc[k]) acc[k] = { fornitore: k, importo: 0, voci: 0 };
+    acc[k].importo += r.importo; acc[k].voci++;
+  });
+  return Object.values(acc).sort((a, b) => b.importo - a.importo).slice(0, limite);
+}
+
+function indicatoriCosti(righe) {
+  const gest = righe.filter(r => r.tipo !== 'utili');
+  const tot = somma(gest, r => r.importo);
+  const pers = somma(gest.filter(r => r.tipo === 'personale'), r => r.importo);
+  const utili = somma(righe.filter(r => r.tipo === 'utili'), r => r.importo);
+  const { gruppi, comuniNonAttribuiti } = costiPerGruppo(righe);
+  const diretti = somma(gruppi, g => g.diretti + g.personale);
+  return {
+    totale: tot, personale: pers, utiliSoci: utili, voci: gest.length,
+    diretti, comuni: somma(costiPerPersona(righe), p => p.importo),
+    comuniNonAttribuiti, gruppi,
+    nonRipartito: Math.max(0, tot - diretti - somma(costiPerPersona(righe), p => p.importo))
+  };
+}
+
+/* Incrocio con i ricavi. I gruppi senza corrispondenza con un sezionale
+   (Studio EC, CRI) restano fuori: sommarli falserebbe il margine. */
+function confrontoRicaviCosti(righeProforma, righeCosti, anno) {
+  const rc = righeCosti.filter(r => r.anno === anno);
+  const { gruppi, comuniNonAttribuiti } = costiPerGruppo(rc);
+  const perGruppo = Object.fromEntries(gruppi.map(g => [g.gruppo, g]));
+
+  const sez = {};
+  righeProforma.filter(r => r.anno === anno).forEach(r => {
+    sez[r.sezionale] = (sez[r.sezionale] || 0) + r.imponibile;
+  });
+
+  const chiavi = new Set([
+    ...Object.keys(perGruppo).filter(g => sezionaleDiGruppo(g)),
+    ...Object.keys(sez).map(s => Object.keys(GRUPPI_COSTI).find(g => GRUPPI_COSTI[g].sezionale === s)).filter(Boolean)
+  ]);
+
+  const righe = [...chiavi].map(g => {
+    const s = sezionaleDiGruppo(g);
+    const ricavi = s ? (sez[s] || 0) : 0;
+    const c = perGruppo[g] || { diretti: 0, comuni: 0, personale: 0, totale: 0 };
+    const costi = c.totale;
+    return {
+      gruppo: g, nome: nomeGruppo(g), sezionale: s,
+      ricavi, costi, diretti: c.diretti, personale: c.personale, comuni: c.comuni,
+      margine: ricavi - costi,
+      marginePct: ricavi > 0 ? (ricavi - costi) / ricavi * 100 : null,
+      incidenza: ricavi > 0 ? costi / ricavi * 100 : null
+    };
+  }).sort((a, b) => b.ricavi - a.ricavi);
+
+  const fuori = gruppi.filter(g => !sezionaleDiGruppo(g.gruppo));
+  return { righe, fuori, comuniNonAttribuiti,
+    totRicavi: somma(righe, r => r.ricavi), totCosti: somma(righe, r => r.costi) };
 }
 
 /* =====================================================================
@@ -932,6 +1476,23 @@ const box = (tipo, titolo, testo) => { LETTURE.push({ tipo, titolo, testo }); re
 /* Sintesi del filtro attivo: presente in ogni sezione, così non serve
    tornare in panoramica per sapere cosa si sta guardando. */
 function sintesiCorrente() {
+  // Le sezioni sui costi hanno una sintesi propria: quella del fatturato
+  // lì sarebbe fuori tema.
+  if (stato.tab === 'costi' || stato.tab === 'margini') {
+    const rc = store.costi.filter(r => stato.anno === 'TUTTI' || r.anno === +stato.anno);
+    const kc = indicatoriCosti(rc);
+    const anni = [...new Set(store.costi.map(r => r.anno))].sort();
+    return `<div class="overview">
+      <div class="ov-titolo">${esc(SOCIETA[stato.societa] ? SOCIETA[stato.societa].nome : '')} · costi ·
+        ${stato.anno === 'TUTTI' ? esc(anni.join('–')) : esc(stato.anno)}</div>
+      <div class="ov-dati">
+        <span><b>${euro(kc.totale)}</b> costi di gestione</span>
+        <span><b>${num(kc.voci)}</b> voci</span>
+        <span><b>${euro(kc.personale)}</b> personale</span>
+        <span><b>${euro(kc.diretti)}</b> diretti ai gruppi</span>
+        <span><b>${euro(kc.comuni)}</b> comuni</span>
+      </div></div>`;
+  }
   const k = indicatori(VISTE);
   const ambito = stato.sezionale === 'TUTTI'
     ? 'tutti i sezionali'
@@ -993,20 +1554,21 @@ function rendiPanoramica() {
   const guadagno = (rid.senza.dso != null && rid.con.dso != null) ? rid.senza.dso - rid.con.dso : null;
   const topAperto = cl.filter(c => c.aperto > 0).sort((a, b) => b.aperto - a.aperto)[0];
 
-  let h = '<h2>📈 Riepilogo generale</h2>' + SEGNAPOSTO + '<div class="kpi-grid">';
-  h += kpi('Imponibile emesso', euro(k.imponibile), `${num(k.documenti)} proforma · ${num(k.clienti)} clienti`,
-           '', p ? deltaHtml(variazione(u.imponibile, p.imponibile)) : '');
-  h += kpi('Incassato', pct(k.quotaIncassata), `${euro(k.incassato)} su ${euro(k.imponibile)}`, 'green');
-  h += kpi('Tempo medio di incasso', gg(k.dso), `mediana ${dec(k.dsoMediano)} gg`,
-           k.dso > 45 ? 'red' : k.dso > 25 ? 'orange' : 'green',
-           p ? deltaHtml(variazione(u.dso, p.dso), true) : '');
-  h += kpi('Credito aperto', euro(k.aperto), `${euro(k.apertoLordo)} lordi · ${num(k.documentiAperti)} doc.`,
-           oltre90 > k.aperto * .35 ? 'red' : 'orange');
+  let h = '<div class="fascia-grid">';
+  h += fascia('blu', 'euro', 'Imponibile emesso', euro(k.imponibile),
+              `${num(k.documenti)} proforma · ${num(k.clienti)} clienti`);
+  h += fascia('verde', 'crescita', 'Quota incassata', pct(k.quotaIncassata),
+              `${euro(k.incassato)} rientrati`);
+  h += fascia('ambra', 'tempo', 'Tempo medio di incasso', gg(k.dso),
+              `mediana ${dec(k.dsoMediano)} gg`);
+  h += fascia('rosa', 'carta', 'Credito aperto', euro(k.aperto),
+              `${num(k.documentiAperti)} documenti · ${euro(k.apertoLordo)} lordi`);
+  h += '</div><div class="kpi-grid">';
   h += kpi('Scaduto oltre 90 giorni', euro(oltre90), `${num(doc90)} documenti`, oltre90 > 0 ? 'red' : 'green');
   h += kpi('Ticket medio', euro(k.ticket), `mediana ${euro(k.ticketMediano)}`);
   h += kpi('Con mandato RID', gg(rid.con.dso), `${euro(rid.con.imponibile)} · aperto ${pct(rid.con.quotaAperta)}`, 'green');
   h += kpi('Senza mandato RID', gg(rid.senza.dso), `${euro(rid.senza.imponibile)} · aperto ${pct(rid.senza.quotaAperta)}`, 'red');
-  h += '</div>';
+  h += '</div>' + SEGNAPOSTO;
 
   if (p && u) {
     const cresce = variazione(u.imponibile, p.imponibile);
@@ -1016,9 +1578,14 @@ function rendiPanoramica() {
       (${cresce == null ? '—' : (cresce > 0 ? '+' : '') + dec(cresce) + '%'}), con ${num(u.documenti)} proforma
       contro ${num(p.documenti)}. Il tempo medio di incasso è passato da <strong>${dec(p.dso)}</strong> a
       <strong>${dec(u.dso)} giorni</strong>.
-      ${tempi == null ? '' : tempi < 0
-        ? ' Volumi e circolante si muovono nella stessa direzione: è il segnale che la crescita non sta avvenendo a scapito della cassa.'
-        : ' I tempi si allungano insieme ai volumi: conviene verificare quali linee di attività stiano assorbendo cassa.'}`);
+      ${tempi == null ? '' :
+        cresce > 0 && tempi < 0
+          ? ' Volumi e circolante si muovono nella direzione giusta insieme: la crescita non sta avvenendo a scapito della cassa.'
+        : cresce > 0 && tempi >= 0
+          ? ' I tempi si allungano insieme ai volumi: conviene verificare quali linee di attività stiano assorbendo cassa.'
+        : cresce <= 0 && tempi < 0
+          ? ' Il fatturato è in calo ma gli incassi arrivano più in fretta: la cassa regge meglio di quanto dica il solo dato di volume.'
+          : ' Fatturato in calo e tempi in allungamento si sommano: è la combinazione che pesa di più sulla liquidità, e va guardata per prima.'}`);
   }
 
   if (guadagno != null && guadagno > 3) {
@@ -1103,7 +1670,7 @@ function rendiMensile() {
   const totUltimo = somma(emesso[ultimo]);
   const proiezione = mesiAttivi ? totUltimo / mesiAttivi * 12 : null;
 
-  let h = `<h2>📅 Andamento mensile dell'imponibile</h2>${SEGNAPOSTO}
+  let h = `${SEGNAPOSTO}
     <div class="chart-card"><h3>Imponibile emesso mese per mese (€ netti)</h3>
       <div class="chart-wrap-lg"><canvas id="gMese"></canvas></div></div>
     <div class="chart-row">
@@ -1181,7 +1748,7 @@ function rendiTempi() {
   const k = indicatori(VISTE);
   const aperte = VISTE.filter(r => !r.incassata).sort((a, b) => b.ggAperti - a.ggAperti);
 
-  let h = `<h2>⏱️ Analisi delle tempistiche di incasso</h2>${SEGNAPOSTO}<div class="kpi-grid">`;
+  let h = `${SEGNAPOSTO}<div class="kpi-grid">`;
   h += kpi('Tempo medio ponderato', gg(k.dso), 'pesato sull\'imponibile di ogni documento');
   h += kpi('Tempo mediano', gg(k.dsoMediano), 'metà delle fatture rientra entro', 'green');
   h += kpi('Quota incassata', pct(k.quotaIncassata), 'sull\'imponibile del periodo', 'green');
@@ -1295,7 +1862,7 @@ function rendiCredito() {
   const totLordo = somma(aperte, r => r.totale);
 
   if (!aperte.length) {
-    $('#sez-credito').innerHTML = `<h2>💳 Credito aperto</h2>
+    $('#sez-credito').innerHTML = `
       <div class="chart-card"><div class="vuoto"><h3>Nessuna posizione aperta</h3>
       <p>Tutto l'imponibile del periodo selezionato risulta incassato.</p></div></div>`;
     return;
@@ -1345,7 +1912,7 @@ function rendiCredito() {
   });
   const mesiArr = Object.entries(perMese).sort();
 
-  let h = `<h2>💳 Credito aperto</h2>${SEGNAPOSTO}<div class="kpi-grid">`;
+  let h = `${SEGNAPOSTO}<div class="kpi-grid">`;
   h += kpi('Totale da incassare', euro(totAperto), `${euro(totLordo)} lordi · ${num(aperte.length)} documenti`, 'red');
   h += kpi('Oltre 90 giorni', euro(oltre90), `${num(doc90)} documenti · ${pct(oltre90 / totAperto * 100)} dell'aperto`,
            oltre90 > totAperto * 0.4 ? 'red' : 'orange');
@@ -1493,7 +2060,7 @@ function rendiClienti() {
   const ritardo = cl.filter(c => c.dso != null && c.imponibile >= 1000).sort((a, b) => b.dso - a.dso).slice(0, 15);
   const maxDso = Math.max(...ritardo.map(c => c.dso), 1);
 
-  let h = `<h2>🔴 Clienti — chi paga bene e chi va sollecitato</h2>${SEGNAPOSTO}<div class="kpi-grid">`;
+  let h = `${SEGNAPOSTO}<div class="kpi-grid">`;
   h += kpi('Clienti nel periodo', num(cl.length), euro(tot));
   h += kpi('Eccellenti e affidabili', num((conteggi['Eccellente'] || 0) + (conteggi['Affidabile'] || 0)), `su ${num(cl.length)} clienti`, 'green');
   h += kpi('Da monitorare', num(conteggi['Da monitorare'] || 0), 'pagano tardi o hanno esposizione', 'orange');
@@ -1623,7 +2190,7 @@ function rendiAttivita() {
   const tot = somma(fam, f => f.importo) || 1;
   const a1 = anni[anni.length - 2], a2 = anni[anni.length - 1];
 
-  let h = `<h2>🏷️ Suddivisione per tipologia di attività</h2>${SEGNAPOSTO}
+  let h = `${SEGNAPOSTO}
     <div class="chart-row">
       <div class="chart-card"><h3>Top 10 voci — quota % dell'imponibile</h3><div class="chart-wrap-lg"><canvas id="gTorta"></canvas></div></div>
       <div class="chart-card"><h3>Peso delle famiglie, anno per anno (%)</h3><div class="chart-wrap-lg"><canvas id="gFam"></canvas></div></div>
@@ -1714,7 +2281,7 @@ function rendiAttivita() {
 function rendiConfronto() {
   const anni = anniDi(VISTE);
   if (anni.length < 2) {
-    $('#sez-confronto').innerHTML = `<h2>🔄 Confronto cross-anno</h2>
+    $('#sez-confronto').innerHTML = `
       <div class="chart-card"><div class="vuoto"><p>L'archivio contiene un solo esercizio.
       Carica l'export di un anno precedente per attivare i confronti.</p></div></div>`;
     return;
@@ -1747,7 +2314,7 @@ function rendiConfronto() {
     ['Credito ancora aperto', a => a.aperto, euro, true]
   ];
 
-  let h = `<h2>🔄 Confronto cross-anno</h2>${SEGNAPOSTO}
+  let h = `${SEGNAPOSTO}
     <div style="margin-bottom:16px"><div class="filtro" id="filtroOmog">
       <button data-o="1" aria-pressed="${omogeneo}">Finestra omogenea (1 gen – ${dataIt(REF).slice(0, 5)})</button>
       <button data-o="0" aria-pressed="${!omogeneo}">Anni interi</button>
@@ -1864,10 +2431,306 @@ function rendiConfronto() {
     options: { maintainAspectRatio: false, cutout: '58%', plugins: { ...legenda } } });
 }
 
+function costiVisti() {
+  return store.costi.filter(r => stato.anno === 'TUTTI' || r.anno === +stato.anno);
+}
+
+function rendiCosti() {
+  const tutti = store.costi;
+  if (!tutti.length) {
+    pubblica('costi', `<div class="chart-card"><div class="vuoto">
+      <h3>Nessun dato di costo</h3>
+      <p>Carica il file di suddivisione costi dalla sezione Archivio: viene riconosciuto da solo.</p></div></div>`);
+    return;
+  }
+
+  const righe = costiVisti();
+  const k = indicatoriCosti(righe);
+  const anni = [...new Set(tutti.map(r => r.anno))].sort();
+  const perTip = costiPerTipologia(righe);
+  const perForn = costiPerFornitore(righe);
+  const persone = costiPerPersona(righe);
+
+  let h = '<div class="fascia-grid">';
+  h += fascia('rosa', 'euro', 'Costi di gestione', euro(k.totale),
+              `${num(k.voci)} voci · ${stato.anno === 'TUTTI' ? anni.join(' · ') : stato.anno}`);
+  h += fascia('blu', 'clienti', 'Costo del personale', euro(k.personale),
+              k.totale ? `${pct(k.personale / k.totale * 100)} del totale` : '');
+  h += fascia('ambra', 'carta', 'Costi comuni', euro(k.comuni),
+              'ripartiti per quote fra i soci');
+  h += fascia('verde', 'torta', 'Costi diretti ai gruppi', euro(k.diretti),
+              k.totale ? `${pct(k.diretti / k.totale * 100)} del totale` : '');
+  h += '</div>' + SEGNAPOSTO;
+
+  h += `<div class="chart-row">
+    <div class="chart-card"><h3>Costi per gruppo di lavoro</h3><div class="chart-wrap-lg"><canvas id="kGruppi"></canvas></div>
+      <div class="kpi-sub" style="margin-top:8px">Solo i costi attribuiti direttamente al gruppo, personale compreso.</div></div>
+    <div class="chart-card"><h3>Composizione dei costi</h3><div class="chart-wrap-lg"><canvas id="kComp"></canvas></div></div>
+  </div>`;
+
+  h += `<div class="chart-row">
+    <div class="chart-card"><h3>Prime voci di costo</h3><div class="chart-wrap-lg"><canvas id="kTipologie"></canvas></div></div>
+    <div class="chart-card"><h3>Costi comuni per quota</h3><div class="chart-wrap"><canvas id="kPersone"></canvas></div>
+      <div class="kpi-sub" style="margin-top:8px">${personeMappate()
+        ? 'Le quote vengono poi attribuite ai gruppi secondo la corrispondenza impostata.'
+        : 'Le quote non sono ancora collegate ai gruppi di lavoro: restano un blocco a sé.'}</div></div>
+  </div>`;
+
+  // ------------------------------- letture -------------------------------
+  if (k.utiliSoci > 0) {
+    box('insight', 'Gli acconti sugli utili restano fuori dai costi.',
+      `Nell'archivio ci sono ${euro(k.utiliSoci)} di acconti sugli utili ai soci. Sono distribuzione di
+       risultato, non costi di gestione, quindi non entrano né nei totali qui sopra né nei confronti fra anni.
+       Restano visibili in fondo alla sezione, così il quadro resta completo.`);
+  }
+
+  const gruppiOrd = k.gruppi.filter(g => g.totale > 0);
+  if (gruppiOrd.length) {
+    const primo = gruppiOrd[0];
+    const fuori = gruppiOrd.filter(g => !sezionaleDiGruppo(g.gruppo));
+    box('insight', 'Dove si concentrano i costi diretti.',
+      `<strong>${esc(nomeGruppo(primo.gruppo))}</strong> assorbe ${euro(primo.totale)}, il
+       ${pct(primo.totale / somma(gruppiOrd, g => g.totale) * 100)} dei costi attribuiti ai gruppi.
+       ${primo.personale > 0 ? `Di questi, ${euro(primo.personale)} sono costo del personale.` : ''}
+       ${fuori.length ? `Restano fuori dal confronto con i ricavi ${fuori.map(g => `<strong>${esc(nomeGruppo(g.gruppo))}</strong> (${euro(g.totale)})`).join(' e ')},
+         perché non corrispondono a un sezionale di fatturato.` : ''}`);
+  }
+
+  if (k.personale > 0) {
+    const recuperati = righe.filter(r => r.origine === 'totali').length;
+    box(recuperati ? 'warn-box' : 'insight', 'Come è contato il personale.',
+      `Il costo del personale vale ${euro(k.personale)}, il ${pct(k.personale / (k.totale || 1) * 100)} dei costi di gestione.
+       ${recuperati
+         ? `Per ${num(recuperati)} voci il dato non era nell'elenco ma nei totali riportati sotto la riga TOTALE del foglio,
+            e da lì è stato recuperato. È il caso del 2025: senza questo recupero il confronto fra anni mostrerebbe
+            un aumento inesistente, perché nel 2026 i dipendenti sono in elenco e nel 2025 no.`
+         : "Le voci provengono tutte dall’elenco costi."}`);
+  }
+
+  if (!personeMappate() && k.comuni > 0) {
+    box('warn-box', 'I costi comuni non sono ancora collegati ai gruppi.',
+      `${euro(k.comuni)} sono ripartiti per quote fra ${persone.map(p => esc(p.persona)).join(', ')},
+       cioè per persona e non per gruppo di lavoro. Finché non è impostata la corrispondenza fra persone e gruppi,
+       questi costi restano un blocco a sé e non entrano nel margine per gruppo: attribuirli con un criterio
+       inventato darebbe margini sbagliati proprio dove servono precisi.`);
+  }
+
+  if (k.nonRipartito > 1) {
+    box('warn-box', 'Voci senza ripartizione.',
+      `${euro(k.nonRipartito)} risultano in elenco ma senza attribuzione né a un gruppo né alle quote comuni.
+       Compaiono nei costi totali ma non nei margini per gruppo: vale la pena verificarle nel file di origine.`);
+  }
+
+  // -------------------------------- tabelle ------------------------------
+  h += `<div class="chart-card"><h3>Dettaglio per gruppo di lavoro</h3>` +
+    tabella([
+      { t: 'Gruppo', v: g => esc(nomeGruppo(g.gruppo)) },
+      { t: 'Costi diretti', num: true, v: g => euro(g.diretti) },
+      { t: 'Personale', num: true, v: g => euro(g.personale) },
+      { t: 'Quota comuni', num: true, v: g => g.comuni > 0 ? euro(g.comuni) : '—' },
+      { t: 'Totale', num: true, v: g => `<strong>${euro(g.totale)}</strong>` },
+      { t: 'Peso', num: true, v: g => {
+          const t = somma(k.gruppi, x => x.totale) || 1;
+          return `${pct(g.totale / t * 100)} ${barra(g.totale / t * 100, '#f4487c')}`; } },
+      { t: 'Fatturato', v: g => sezionaleDiGruppo(g.gruppo)
+          ? `<span class="tag tag-blue">sezionale ${esc(sezionaleDiGruppo(g.gruppo))}</span>`
+          : '<span class="tag tag-grey">nessun sezionale</span>' }
+    ], k.gruppi.filter(g => g.totale > 0)) + '</div>';
+
+  h += `<div class="chart-row">
+    <div class="chart-card"><h3>Voci di costo</h3>` +
+    tabella([
+      { t: 'Tipologia', v: r => esc(r.tipologia) },
+      { t: 'Voci', num: true, v: r => num(r.voci) },
+      { t: 'Importo', num: true, v: r => euro(r.importo) }
+    ], perTip) + `</div>
+    <div class="chart-card"><h3>Principali fornitori</h3>` +
+    tabella([
+      { t: 'Fornitore', v: r => `<div class="cliente-cell" title="${esc(r.fornitore)}">${esc(r.fornitore)}</div>` },
+      { t: 'Voci', num: true, v: r => num(r.voci) },
+      { t: 'Importo', num: true, v: r => euro(r.importo) }
+    ], perForn) + '</div></div>';
+
+  if (k.utiliSoci > 0) {
+    const ut = righe.filter(r => r.tipo === 'utili');
+    h += `<div class="chart-card"><h3>Acconti sugli utili ai soci — fuori dai costi di gestione</h3>` +
+      tabella([
+        { t: 'Socio', v: r => esc(r.fornitore) },
+        { t: 'Voce', v: r => esc(r.tipologia) },
+        { t: 'Anno', num: true, v: r => r.anno },
+        { t: 'Importo', num: true, v: r => euro(r.importo) }
+      ], ut, { nota: `Totale ${euro(k.utiliSoci)}. Distribuzione di risultato, esclusa da totali, grafici e confronti.` }) + '</div>';
+  }
+
+  pubblica('costi', h);
+
+  const colGruppi = ['#3d7ff5', '#23bfae', '#f4487c', '#f5a524', '#7b61ff', '#17b877'];
+  disegna('kGruppi', { type: 'bar',
+    data: { labels: k.gruppi.filter(g => g.totale > 0).map(g => nomeGruppo(g.gruppo)),
+      datasets: [
+        { label: 'Costi diretti', data: k.gruppi.filter(g => g.totale > 0).map(g => g.diretti), backgroundColor: '#3d7ff5', borderRadius: 4 },
+        { label: 'Personale', data: k.gruppi.filter(g => g.totale > 0).map(g => g.personale), backgroundColor: '#7b61ff', borderRadius: 4 },
+        { label: 'Quota comuni', data: k.gruppi.filter(g => g.totale > 0).map(g => g.comuni), backgroundColor: '#23bfae', borderRadius: 4 }] },
+    options: { indexAxis: 'y', maintainAspectRatio: false,
+      scales: { x: { stacked: true, beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eef1f6' } },
+                y: { stacked: true, grid: { display: false } } },
+      plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${euro(c.parsed.x)}` } } } } });
+
+  disegna('kComp', { type: 'doughnut',
+    data: { labels: ['Diretti ai gruppi', 'Personale', 'Comuni per quota', 'Non ripartiti'],
+      datasets: [{ data: [k.diretti - k.personale, k.personale, k.comuni, k.nonRipartito],
+        backgroundColor: ['#3d7ff5', '#7b61ff', '#23bfae', '#c9d2e3'], borderWidth: 0 }] },
+    options: { maintainAspectRatio: false, cutout: '58%',
+      plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.label}: ${euro(c.parsed)}` } } } } });
+
+  disegna('kTipologie', { type: 'bar',
+    data: { labels: perTip.map(t => t.tipologia.length > 30 ? t.tipologia.slice(0, 30) + '…' : t.tipologia),
+      datasets: [{ data: perTip.map(t => t.importo), backgroundColor: PALETTE, borderRadius: 4 }] },
+    options: { indexAxis: 'y', maintainAspectRatio: false,
+      scales: { x: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eef1f6' } },
+                y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => euro(c.parsed.x) } } } } });
+
+  disegna('kPersone', { type: 'doughnut',
+    data: { labels: persone.map(p => p.persona),
+      datasets: [{ data: persone.map(p => p.importo), backgroundColor: colGruppi, borderWidth: 0 }] },
+    options: { maintainAspectRatio: false, cutout: '58%',
+      plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.label}: ${euro(c.parsed)}` } } } } });
+}
+
+/* ------------------------------ redditività --------------------------- */
+
+function rendiMargini() {
+  if (!store.costi.length) {
+    pubblica('margini', `<div class="chart-card"><div class="vuoto">
+      <h3>Servono i costi</h3><p>Carica il file di suddivisione costi per incrociare ricavi e costi.</p></div></div>`);
+    return;
+  }
+  const anniCosti = [...new Set(store.costi.map(r => r.anno))].sort();
+  const anniRic = [...new Set(TUTTE.map(r => r.anno))];
+  const comuni = anniCosti.filter(a => anniRic.includes(a));
+  if (!comuni.length) {
+    pubblica('margini', `<div class="chart-card"><div class="vuoto"><h3>Anni non sovrapponibili</h3>
+      <p>I costi coprono ${anniCosti.join(', ')}, il fatturato ${anniRic.sort().join(', ')}.
+      Serve almeno un anno presente in entrambi.</p></div></div>`);
+    return;
+  }
+  const anno = stato.anno !== 'TUTTI' && comuni.includes(+stato.anno) ? +stato.anno : comuni[comuni.length - 1];
+  const c = confrontoRicaviCosti(TUTTE, store.costi, anno);
+  const margine = c.totRicavi - c.totCosti;
+
+  let h = '<div class="fascia-grid">';
+  h += fascia('blu', 'euro', `Ricavi ${anno}`, euro(c.totRicavi), 'gruppi con costi confrontabili');
+  h += fascia('rosa', 'carta', `Costi ${anno}`, euro(c.totCosti), 'diretti, personale e quote attribuite');
+  h += fascia(margine >= 0 ? 'verde' : 'ambra', 'crescita', 'Margine', euro(margine),
+              c.totRicavi ? `${pct(margine / c.totRicavi * 100)} sui ricavi` : '');
+  h += fascia('ambra', 'torta', 'Incidenza costi', c.totRicavi ? pct(c.totCosti / c.totRicavi * 100) : '—',
+              'quanto del fatturato assorbono');
+  h += '</div>' + SEGNAPOSTO;
+
+  h += `<div class="chart-row">
+    <div class="chart-card"><h3>Ricavi e costi per gruppo</h3><div class="chart-wrap-lg"><canvas id="mBarre"></canvas></div></div>
+    <div class="chart-card"><h3>Margine per gruppo</h3><div class="chart-wrap-lg"><canvas id="mMargine"></canvas></div>
+      <div class="kpi-sub" style="margin-top:8px">In verde il margine positivo, in rosso dove i costi superano i ricavi.</div></div>
+  </div>`;
+
+  // ------------------------------- letture -------------------------------
+  const conRicavi = c.righe.filter(r => r.ricavi > 0);
+  const migliore = [...conRicavi].sort((a, b) => (b.marginePct ?? -999) - (a.marginePct ?? -999))[0];
+  const peggiore = [...conRicavi].sort((a, b) => (a.marginePct ?? 999) - (b.marginePct ?? 999))[0];
+  if (migliore && peggiore && migliore.gruppo !== peggiore.gruppo) {
+    box('insight', 'Quale gruppo rende di più.',
+      `<strong>${esc(migliore.nome)}</strong> ha il margine più alto: ${euro(migliore.margine)} su
+       ${euro(migliore.ricavi)} di ricavi, cioè ${pct(migliore.marginePct)}.
+       All'estremo opposto <strong>${esc(peggiore.nome)}</strong> si ferma a ${pct(peggiore.marginePct)}
+       (${euro(peggiore.margine)} su ${euro(peggiore.ricavi)}).
+       ${peggiore.marginePct < 0
+         ? 'Con margine negativo i costi superano il fatturato: prima di leggerlo come una perdita vale la pena verificare che tutti i ricavi del gruppo siano stati fatturati nel periodo.'
+         : 'La differenza fra i due dice dove conviene guardare per primo, ma va letta insieme al peso di ciascun gruppo sul totale.'}`);
+  }
+
+  const senzaCosti = c.righe.filter(r => r.ricavi > 0 && r.costi === 0);
+  if (senzaCosti.length) {
+    box('warn-box', 'Gruppi con ricavi ma senza costi.',
+      `${senzaCosti.map(r => `<strong>${esc(r.nome)}</strong> (${euro(r.ricavi)})`).join(', ')}
+       ${senzaCosti.length === 1 ? 'ha' : 'hanno'} fatturato ma nessun costo attribuito nel file.
+       Il margine risulta quindi pari al fatturato, che non è un dato reale: o i costi finiscono in un altro
+       gruppo, o quella colonna manca nel foglio dell'anno.`);
+  }
+
+  if (c.fuori.length) {
+    box('insight', 'Cosa resta fuori dal confronto.',
+      `${c.fuori.map(g => `<strong>${esc(nomeGruppo(g.gruppo))}</strong> (${euro(g.totale)})`).join(' e ')}
+       ${c.fuori.length === 1 ? 'ha costi' : 'hanno costi'} ma nessun sezionale di fatturato corrispondente,
+       quindi non ${c.fuori.length === 1 ? 'entra' : 'entrano'} nel margine.
+       Studio EC in particolare è una ragione sociale separata: i suoi ricavi vivono in un altro archivio e
+       sommarli qui darebbe un risultato privo di significato.`);
+  }
+
+  if (c.comuniNonAttribuiti > 0) {
+    box('warn-box', 'Il margine non comprende i costi comuni.',
+      `${euro(c.comuniNonAttribuiti)} di costi comuni non sono attribuiti ad alcun gruppo, perché sono ripartiti
+       per persona e manca la corrispondenza con i gruppi di lavoro. I margini qui sopra sono quindi più
+       generosi del reale di quella cifra: sul totale valgono
+       ${pct(c.comuniNonAttribuiti / (c.totRicavi || 1) * 100)} dei ricavi.`);
+  }
+
+  // confronto fra anni, se disponibili
+  if (comuni.length > 1) {
+    const serie = comuni.map(a => {
+      const x = confrontoRicaviCosti(TUTTE, store.costi, a);
+      return { anno: a, ricavi: x.totRicavi, costi: x.totCosti, margine: x.totRicavi - x.totCosti };
+    });
+    const u = serie[serie.length - 1], p = serie[serie.length - 2];
+    box('evolution-box', 'Come si muove il margine fra gli anni.',
+      `Dal ${p.anno} al ${u.anno} i ricavi passano da ${euro(p.ricavi)} a ${euro(u.ricavi)} e i costi da
+       ${euro(p.costi)} a ${euro(u.costi)}. Il margine va da ${euro(p.margine)} a ${euro(u.margine)}.
+       ${(u.ricavi > p.ricavi && u.costi / u.ricavi < p.costi / p.ricavi)
+         ? 'I ricavi crescono più dei costi: la marginalità migliora, non è solo effetto del volume.'
+         : (u.costi / u.ricavi > p.costi / p.ricavi)
+           ? 'I costi crescono più dei ricavi: anche a fatturato in aumento la marginalità si assottiglia.'
+           : 'Ricavi e costi si muovono in proporzione simile.'}
+       Attenzione a un punto: gli anni coprono periodi diversi, e il ${u.anno} è ancora parziale.`);
+  }
+
+  h += `<div class="chart-card"><h3>Dettaglio per gruppo di lavoro</h3>` +
+    tabella([
+      { t: 'Gruppo', v: r => esc(r.nome) },
+      { t: 'Ricavi', num: true, v: r => euro(r.ricavi) },
+      { t: 'Costi', num: true, v: r => euro(r.costi) },
+      { t: 'di cui personale', num: true, v: r => r.personale ? euro(r.personale) : '—' },
+      { t: 'Margine', num: true, v: r => `<span class="${r.margine >= 0 ? 'su' : 'giu'}">${euro(r.margine)}</span>` },
+      { t: 'Margine %', num: true, v: r => r.marginePct === null ? '—'
+          : `<span class="tag ${r.marginePct >= 30 ? 'tag-green' : r.marginePct >= 0 ? 'tag-orange' : 'tag-red'}">${pct(r.marginePct)}</span>` },
+      { t: 'Incidenza costi', num: true, v: r => r.incidenza === null ? '—' : pct(r.incidenza) }
+    ], c.righe, { nota: `Anno ${anno}. I gruppi senza sezionale di fatturato non compaiono in questa tabella.` }) + '</div>';
+
+  pubblica('margini', h);
+
+  disegna('mBarre', { type: 'bar',
+    data: { labels: c.righe.map(r => r.nome), datasets: [
+      { label: 'Ricavi', data: c.righe.map(r => r.ricavi), backgroundColor: '#3d7ff5', borderRadius: 4 },
+      { label: 'Costi', data: c.righe.map(r => r.costi), backgroundColor: '#f4487c', borderRadius: 4 }] },
+    options: { maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eef1f6' } },
+                x: { grid: { display: false } } },
+      plugins: { ...legenda, tooltip: { callbacks: { label: x => `${x.dataset.label}: ${euro(x.parsed.y)}` } } } } });
+
+  disegna('mMargine', { type: 'bar',
+    data: { labels: c.righe.map(r => r.nome),
+      datasets: [{ data: c.righe.map(r => r.margine),
+        backgroundColor: c.righe.map(r => r.margine >= 0 ? '#17b877' : '#ef4d5a'), borderRadius: 4 }] },
+    options: { indexAxis: 'y', maintainAspectRatio: false,
+      scales: { x: { ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eef1f6' } },
+                y: { grid: { display: false } } },
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: x => `${euro(x.parsed.x)} · ${pct(c.righe[x.dataIndex].marginePct)}` } } } } });
+}
+
 function rendiArchivio() {
   const tutteLeRighe = prepara(store.righe, riferimento(store.righe));
 
-  let h = `<h2>📂 Archivio e caricamenti</h2>
+  let h = `
     <div class="chart-card">
       ${SELETTORE_SOCIETA('societaUpload2')}
       <div class="drop" id="drop2" role="button" tabindex="0">
@@ -2013,22 +2876,35 @@ function esportaRighe() {
    10. INTERFACCIA
    ===================================================================== */
 const TAB = [
-  ['panoramica', '📈 Panoramica', rendiPanoramica],
-  ['mensile', '📅 Andamento mensile', rendiMensile],
-  ['tempi', '⏱️ Tempi di incasso', rendiTempi],
-  ['credito', '💳 Credito aperto', rendiCredito],
-  ['clienti', '🔴 Clienti', rendiClienti],
-  ['attivita', '🏷️ Attività', rendiAttivita],
-  ['confronto', '🔄 Confronto cross-anno', rendiConfronto],
-  ['archivio', '📂 Archivio', rendiArchivio]
+  ['panoramica', 'Panoramica',    rendiPanoramica, 'grafico',    'Analisi',  'Sintesi del periodo selezionato'],
+  ['mensile',    'Andamento',     rendiMensile,    'calendario', 'Analisi',  'Come si distribuisce il fatturato nei mesi'],
+  ['tempi',      'Tempi',         rendiTempi,      'tempo',      'Analisi',  'Quanto ci mette il fatturato a rientrare'],
+  ['credito',    'Credito aperto',rendiCredito,    'carta',      'Analisi',  'Cosa non è ancora stato incassato'],
+  ['clienti',    'Clienti',       rendiClienti,    'clienti',    'Analisi',  'Chi paga puntuale e chi va sollecitato'],
+  ['attivita',   'Attività',      rendiAttivita,   'torta',      'Analisi',  'Quali prestazioni generano il fatturato'],
+  ['confronto',  'Confronto anni',rendiConfronto,  'scambio',    'Analisi',  'Come cambia da un esercizio all\'altro'],
+  ['costi',      'Costi',         rendiCosti,      'documento',  'Costi',    'Spese per gruppo di lavoro e per quota'],
+  ['margini',    'Redditività',   rendiMargini,    'crescita',   'Costi',    'Incrocio fra fatturato e costi dei gruppi'],
+  ['archivio',   'Archivio',      rendiArchivio,   'archivio',   'Gestione', 'Import dei file e storico dei caricamenti']
 ];
 
 function rendiTab() {
-  $('#tabs').innerHTML = TAB.map(([id, t]) =>
-    `<button role="tab" data-tab="${id}" aria-selected="${stato.tab === id}">${t}</button>`).join('');
+  let html = '', gruppo = null;
+  TAB.forEach(([id, nome, , icona, sezione]) => {
+    if (sezione !== gruppo) { html += `<div class="nav-gruppo">${esc(sezione)}</div>`; gruppo = sezione; }
+    html += `<button role="tab" data-tab="${id}" aria-selected="${stato.tab === id}">
+               ${ico(icona, 18)}<span>${esc(nome)}</span></button>`;
+  });
+  $('#tabs').innerHTML = html;
   $('#tabs').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
     stato.tab = b.dataset.tab; mostra();
   }));
+  /* Al telefono la barra scorre: dopo il ridisegno la voce attiva potrebbe
+     restare fuori campo, quindi la si riporta in vista. */
+  const attiva = $('#tabs button[aria-selected="true"]');
+  if (attiva && window.innerWidth <= 1000) {
+    attiva.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }
 }
 
 function rendiToolbar() {
@@ -2042,16 +2918,19 @@ function rendiToolbar() {
       presenti.map(c => `<button data-v="${c}" aria-pressed="${stato.societa === c}"
         title="${esc(SOCIETA[c].nome)}">${esc(SOCIETA[c].breve)}</button>`).join('') + '</div>';
   }
-  if (sezDisp.length > 1) {
+  const soloAnno = stato.tab === 'costi' || stato.tab === 'margini';
+  if (sezDisp.length > 1 && !soloAnno) {
     h += `<span class="filtro-label">Sezionale</span><div class="filtro" data-g="sezionale">
       <button data-v="TUTTI" aria-pressed="${stato.sezionale === 'TUTTI'}">Vista d'insieme</button>` +
       sezDisp.map(s => `<button data-v="${s}" aria-pressed="${stato.sezionale === s}"
         title="Sezionale ${esc(s)}">${esc(nomeSez(stato.societa, s))}</button>`).join('') + '</div>';
   }
-  if (anni.length > 1) {
+  const anniCosti = [...new Set(store.costi.map(r => r.anno))].sort((a, b) => b - a);
+  const anniMostrati = soloAnno ? anniCosti : anni;
+  if (anniMostrati.length > 1) {
     h += `<span class="filtro-label">Anno</span><div class="filtro" data-g="anno">
       <button data-v="TUTTI" aria-pressed="${stato.anno === 'TUTTI'}">Tutti</button>` +
-      anni.map(a => `<button data-v="${a}" aria-pressed="${stato.anno === String(a)}">${a}</button>`).join('') + '</div>';
+      anniMostrati.map(a => `<button data-v="${a}" aria-pressed="${stato.anno === String(a)}">${a}</button>`).join('') + '</div>';
   }
   h += `<div class="spacer"></div>
         <span class="kpi-sub">${stato.sezionale === 'TUTTI' ? 'Tutti i sezionali' : esc(etichettaSez(stato.societa, stato.sezionale))}
@@ -2059,7 +2938,6 @@ function rendiToolbar() {
 
   const tb = $('#toolbar');
   tb.innerHTML = h;
-  tb.hidden = !TUTTE.length;
   tb.querySelectorAll('.filtro').forEach(f => f.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     stato[f.dataset.g] = b.dataset.v;
@@ -2074,12 +2952,12 @@ function rendiBadge() {
   const sez = [...new Set(TUTTE.map(r => r.sezionale))].sort();
   let h = '';
   if (TUTTE.length) {
-    h += `<span class="badge">${num(TUTTE.length)} proforma</span>`;
+    // Solo il perimetro dell'archivio: gli importi stanno nell'overview.
+    h += `<span class="badge">${esc(SOCIETA[stato.societa].nome)}</span>`;
     h += `<span class="badge">${esc(sez.map(x => nomeSez(stato.societa, x)).join(' · '))}</span>`;
     h += `<span class="badge">${anni.join(' · ')}</span>`;
-    h += `<span class="badge">${num(k.clienti)} clienti</span>`;
-    h += `<span class="badge ok">${euro(k.imponibile)} di imponibile</span>`;
-    if (k.aperto > 0) h += `<span class="badge warn">${euro(k.aperto)} ancora da incassare</span>`;
+    h += `<span class="badge">${num(TUTTE.length)} proforma in archivio</span>`;
+    if (k.aperto > 0) h += `<span class="badge warn">${euro(k.aperto)} da incassare</span>`;
   } else {
     h += `<span class="badge">Nessun dato caricato</span>`;
   }
@@ -2097,28 +2975,44 @@ function rendiBadge() {
       ? `Oltre 90 giorni ci sono ${euro(scaduto)} da incassare`
       : 'Credito scaduto sotto controllo';
   }
-  const st = $('#sottotitolo');
-  st.textContent = stato.societa
-    ? `${SOCIETA[stato.societa].nome} — incassi, tempi di pagamento e clienti`
-    : 'Analisi delle proforma, dei tempi di incasso e del comportamento dei clienti';
+  document.title = stato.societa
+    ? `STIncassi — ${SOCIETA[stato.societa].breve}`
+    : 'STIncassi';
   $('#footer-info').textContent = TUTTE.length ? `archivio aggiornato al ${dataIt(REF)}` : 'in attesa del primo caricamento';
-  $('#footer-utente').innerHTML = ONLINE && utente
-    ? `Accesso come <strong>${esc(utente.email)}</strong> · archivio condiviso ·
-       <a href="#" id="esci">esci</a> · `
-    : 'Elaborazione locale · nessun dato lascia il browser · ';
-  const esci = $('#esci');
-  if (esci) esci.addEventListener('click', (e) => { e.preventDefault(); auth.signOut(); location.reload(); });
+  const piede = $('#latoPiede');
+  if (piede) {
+    piede.innerHTML = ONLINE && utente
+      ? `<div class="mail">${esc(utente.email)}</div>
+         <div style="margin-bottom:10px">Archivio condiviso · ${num(TUTTE.length)} proforma</div>
+         <button class="btn ghost" style="padding:7px 12px;font-size:.8rem" id="esci">Esci</button>`
+      : `<div class="mail">Modalità locale</div>
+         <div>I dati restano in questo browser</div>`;
+    const esci = $('#esci');
+    if (esci) esci.addEventListener('click', () => { auth.signOut(); location.reload(); });
+  }
+  $('#footer-utente').innerHTML = ONLINE && utente ? 'Archivio online · ' : 'Elaborazione locale · ';
 }
 
 function mostra() {
   const vuoto = !TUTTE.length;
   $('#benvenuto').hidden = !vuoto;
-  $('#tabs').hidden = vuoto;
+  $('#tabs').hidden = false;
+  $('#cima').hidden = vuoto;
   TAB.forEach(([id]) => $('#sez-' + id).hidden = true);
-  if (vuoto) return;
+  const sezCosti = stato.tab === 'costi' || stato.tab === 'margini';
+  if (vuoto && !(sezCosti && store.costi.length)) { rendiTab(); return; }
+  if (vuoto) { $('#benvenuto').hidden = true; $('#cima').hidden = false; }
+
   const t = TAB.find(x => x[0] === stato.tab) || TAB[0];
   $('#sez-' + t[0]).hidden = false;
-  LETTURE = [];          // ogni sezione parte pulita
+  // Il titolo vive nella barra in alto, non dentro la sezione: così resta
+  // visibile anche quando si scorre e non si ripete due volte.
+  $('#cimaTitolo').textContent = t[1];
+  $('#cimaOcchiello').textContent = t[5] || '';
+  // I filtri cambiano da sezione a sezione: sui costi il sezionale non
+  // si applica, quindi vanno ridisegnati a ogni cambio di scheda.
+  rendiToolbar();
+  LETTURE = [];
   t[2]();
   rendiTab();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2154,6 +3048,24 @@ async function importa(files, esito, societa) {
   let messaggi = [], errori = [];
   for (const f of files) {
     try {
+      // Un file di suddivisione costi si riconosce dalla forma: non serve
+      // che l'utente lo dichiari, e non ha una ragione sociale da scegliere.
+      if (await eFileCosti(f)) {
+        const ac = await leggiCosti(f);
+        const { nuove, sostituite } = store.aggiungiCosti(ac);
+        let mc = `<strong>${esc(ac.nomeFile)}</strong> → <strong>costi</strong>: ${num(nuove)} voci`;
+        if (sostituite) mc += `, sostituite ${num(sostituite)} dello stesso anno`;
+        mc += ` · anni ${ac.anni.map(x => x.anno).join(', ')}`;
+        if (ac.scarti.length) mc += ` · ${num(ac.scarti.length)} righe scartate`;
+        messaggi.push(mc);
+        ac.avvisi.forEach(v => messaggi.push(`<span style="color:var(--tenue)">${esc(v)}</span>`));
+        if (ONLINE) {
+          try { await store.sincronizzaCosti(ac); }
+          catch (err) { errori.push(`<strong>${esc(ac.nomeFile)}</strong>: costi letti ma non salvati online (${esc(err.message)}).`); }
+        }
+        continue;
+      }
+
       const a = await leggiFile(f, societa);
 
       /* Se qualche riga non ha il suffisso del sezionale si chiede, invece di
