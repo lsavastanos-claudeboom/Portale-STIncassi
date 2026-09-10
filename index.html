@@ -124,7 +124,7 @@ a { color: var(--blu); }
 }
 .cima-riga { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; flex-wrap: wrap; }
 .cima h2 { font-size: 1.28rem; }
-.cima .occhiello { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--tenue); margin-bottom: 4px; }
+.cima .occhiello { font-size: 12.5px; font-weight: 400; color: var(--tenue); margin-bottom: 4px; }
 .badges { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
 .badge {
   font-size: .76rem; font-weight: 400; padding: 3px 0; color: var(--tenue);
@@ -148,7 +148,18 @@ a { color: var(--blu); }
 }
 .filtro button:hover { color: var(--inchiostro); }
 .filtro button[aria-pressed="true"] { background: var(--blu); color: #fff; font-weight: 600; }
-.filtro-label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--tenue); }
+.filtro-label { font-size: 12.5px; font-weight: 400; color: var(--tenue); }
+.periodo { display: inline-flex; align-items: center; gap: 6px; background: var(--tinta); border-radius: 999px; padding: 3px 6px; }
+.periodo select {
+  border: 0; background: none; font: inherit; font-size: 13px; color: var(--inchiostro);
+  padding: 3px 4px; border-radius: 999px; cursor: pointer;
+}
+.periodo-sep { color: var(--tenue); font-size: 12px; }
+.periodo-reset {
+  border: 0; background: var(--carta); border-radius: 999px; padding: 4px 11px;
+  font: inherit; font-size: 12.5px; color: var(--testo); cursor: pointer;
+}
+.periodo-reset:hover { color: var(--inchiostro); }
 .spacer { flex: 1; }
 
 .container { padding: 24px 28px 60px; max-width: 1380px; }
@@ -168,9 +179,9 @@ a { color: var(--blu); }
 .kpi-card.orange .kpi-value { color: var(--ambra); }
 .kpi-card.red    .kpi-value { color: var(--rosso); }
 .kpi-testo { min-width: 0; }
-.kpi-label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--tenue); }
-.kpi-value { font-family: var(--display); font-size: 1.75rem; font-weight: 700; color: var(--inchiostro); line-height: 1.15; margin-top: 3px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.kpi-sub { font-size: .76rem; color: var(--tenue); margin-top: 2px; }
+.kpi-label { font-size: 12.5px; font-weight: 400; color: var(--testo); margin-top: 2px; }
+.kpi-value { font-family: var(--display); font-size: 30px; font-weight: 700; color: var(--inchiostro); line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.kpi-sub { font-size: 11.5px; color: var(--tenue); margin-top: 3px; }
 .delta { font-size: .76rem; font-weight: 700; margin-top: 4px; }
 .delta.up { color: var(--verde); } .delta.down { color: var(--rosso); } .delta.neu { color: var(--ambra); }
 
@@ -185,9 +196,9 @@ a { color: var(--blu); }
 .fascia.rosa  .fascia-valore { color: var(--rosso); }
 .fascia.ambra .fascia-valore { color: var(--ambra); }
 .fascia-icona { display: none; }
-.fascia-label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--tenue); }
-.fascia-valore { font-family: var(--display); font-size: 1.75rem; font-weight: 700; line-height: 1.15; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.fascia-sub { font-size: .74rem; opacity: .85; margin-top: 1px; }
+.fascia-label { font-size: 12.5px; font-weight: 400; color: var(--testo); margin-top: 2px; }
+.fascia-valore { font-family: var(--display); font-size: 30px; font-weight: 700; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.fascia-sub { font-size: 11.5px; color: var(--tenue); margin-top: 3px; }
 
 .chart-card { background: var(--carta); border-radius: var(--r-lg); padding: 20px 22px; box-shadow: var(--ombra); margin-bottom: 18px; }
 .chart-card h3 { font-size: .95rem; margin-bottom: 3px; }
@@ -198,7 +209,7 @@ a { color: var(--blu); }
 /* -------------------------------------- pannello di lettura e overview */
 .pannello { background: var(--carta); border: 1px solid var(--bordo); border-radius: var(--r-xl); padding: 20px 24px; margin-bottom: 22px; box-shadow: none; }
 .overview { border-bottom: 1px solid var(--bordo); padding-bottom: 15px; margin-bottom: 3px; }
-.ov-titolo { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--tenue); margin-bottom: 12px; }
+.ov-titolo { font-size: 12.5px; font-weight: 400; color: var(--tenue); margin-bottom: 12px; }
 .ov-dati { display: flex; flex-wrap: wrap; gap: 8px 26px; font-size: .84rem; color: var(--tenue); }
 .ov-dati b { color: var(--inchiostro); font-family: var(--display); font-size: 1.1rem; font-weight: 700; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
 .ov-rosso b { color: var(--rosso); }
@@ -237,7 +248,7 @@ a { color: var(--blu); }
 .tab-scroll { overflow-x: auto; margin: 0 -22px; padding: 0 22px; -webkit-overflow-scrolling: touch; }
 table { width: 100%; border-collapse: collapse; font-size: .85rem; }
 th {
-  text-align: left; font-size: .78rem; font-weight: 400;
+  text-align: left; font-size: 12.5px; font-weight: 400;
   color: var(--tenue); padding: 10px 12px; border-bottom: 1px solid var(--bordo-forte); white-space: nowrap;
   background: var(--carta); position: sticky; top: 0;
 }
@@ -1026,7 +1037,7 @@ function movimenti(righe, a1, a2) {
 /* =====================================================================
    5. STATO E FILTRI
    ===================================================================== */
-const stato = { societa: null, sezionale: 'TUTTI', anno: 'TUTTI', tab: 'panoramica',
+const stato = { societa: null, sezionale: 'TUTTI', anno: 'TUTTI', daMese: 1, aMese: 12, tab: 'panoramica',
                 ordineClienti: 'imponibile', discClienti: true, filtroClienti: 'tutti', cerca: '' };
 let TUTTE = [], VISTE = [], REF = null;
 
@@ -1048,7 +1059,8 @@ function ricalcola() {
   TUTTE = prepara(dellaSocieta, REF);
   VISTE = TUTTE.filter(r =>
     (stato.sezionale === 'TUTTI' || r.sezionale === stato.sezionale) &&
-    (stato.anno === 'TUTTI' || r.anno === +stato.anno));
+    (stato.anno === 'TUTTI' || r.anno === +stato.anno) &&
+    nelPeriodo(r.data_doc));
 }
 
 const anniDi = (righe) => [...new Set(righe.map(r => r.anno))].sort();
@@ -1114,20 +1126,18 @@ function icoDa(label) {
 
 const kpi = (label, valore, sub, tono, delta) =>
   `<div class="kpi-card ${tono || ''}">
-     <div class="kpi-icona">${ico(icoDa(label))}</div>
      <div class="kpi-testo">
-       <div class="kpi-label">${esc(label)}</div>
        <div class="kpi-value">${valore}</div>
+       <div class="kpi-label">${esc(label)}</div>
        ${sub ? `<div class="kpi-sub">${sub}</div>` : ''}${delta || ''}
      </div></div>`;
 
 /* Fascia piena: solo per i quattro numeri di testa di una sezione. */
 const fascia = (colore, icona, label, valore, sub) =>
   `<div class="fascia ${colore}">
-     <div class="fascia-icona">${ico(icona, 22)}</div>
-     <div><div class="fascia-label">${esc(label)}</div>
      <div class="fascia-valore">${valore}</div>
-     ${sub ? `<div class="fascia-sub">${sub}</div>` : ''}</div></div>`;
+     <div class="fascia-label">${esc(label)}</div>
+     ${sub ? `<div class="fascia-sub">${sub}</div>` : ''}</div>`;
 
 const barra = (quota, colore) =>
   `<div class="bar-wrap"><div class="bar-fill" style="width:${Math.max(2, Math.min(100, quota))}%;background:${colore}"></div></div>`;
@@ -1460,14 +1470,14 @@ function indicatoriCosti(righe) {
 /* Incrocio con i ricavi. I gruppi senza corrispondenza con un sezionale
    (Studio EC, CRI) restano fuori: sommarli falserebbe il margine. */
 function confrontoRicaviCosti(righeProforma, righeCosti, anno) {
-  const rc = righeCosti.filter(r => r.anno === anno);
+  const rc = costiAnno(anno);
   const { gruppi, comuniNonAttribuiti } = costiPerGruppo(rc);
   const perGruppo = Object.fromEntries(gruppi.map(g => [g.gruppo, g]));
 
   const sez = {};
-  righeProforma.filter(r => r.anno === anno).forEach(r => {
-    sez[r.sezionale] = (sez[r.sezionale] || 0) + r.imponibile;
-  });
+  righeProforma.filter(r => r.anno === anno && nelPeriodo(r.data_doc) &&
+      (stato.sezionale === 'TUTTI' || r.sezionale === stato.sezionale))
+    .forEach(r => { sez[r.sezionale] = (sez[r.sezionale] || 0) + r.imponibile; });
 
   const chiavi = new Set([
     ...Object.keys(perGruppo).filter(g => sezionaleDiGruppo(g)),
@@ -1512,16 +1522,16 @@ function sintesiCorrente() {
   // Le sezioni sui costi hanno una sintesi propria: quella del fatturato
   // lì sarebbe fuori tema.
   if (stato.tab === 'costi' || stato.tab === 'margini') {
-    const rc = store.costi.filter(r => stato.anno === 'TUTTI' || r.anno === +stato.anno);
-    const kc = indicatoriCosti(rc);
+    const kc = indicatoriCosti(costiVisti());
     const anni = [...new Set(store.costi.map(r => r.anno))].sort();
+    const ambito = stato.sezionale === 'TUTTI' ? 'tutti i gruppi' : nomeSez(stato.societa, stato.sezionale);
     return `<div class="overview">
-      <div class="ov-titolo">${esc(SOCIETA[stato.societa] ? SOCIETA[stato.societa].nome : '')} · costi ·
-        ${stato.anno === 'TUTTI' ? esc(anni.join('–')) : esc(stato.anno)}</div>
+      <div class="ov-titolo">${esc(SOCIETA[stato.societa] ? SOCIETA[stato.societa].nome : '')} · costi · ${esc(ambito)} ·
+        ${stato.anno === 'TUTTI' ? esc(anni.join('–')) : esc(stato.anno)}${periodoParziale() ? ' · ' + esc(etichettaPeriodo()) : ''}</div>
       <div class="ov-dati">
-        <span><b>${euro(kc.totale)}</b> costi di gestione</span>
+        <span><b>${euro(kc.totale)}</b> ${esc(dicituraCosti())}</span>
         <span><b>${num(kc.voci)}</b> voci</span>
-        <span><b>${euro(kc.personale)}</b> personale</span>
+        ${periodoParziale() ? '' : `<span><b>${euro(kc.personale)}</b> personale</span>`}
         <span><b>${euro(kc.diretti)}</b> diretti ai gruppi</span>
         <span><b>${euro(kc.comuni)}</b> comuni</span>
       </div></div>`;
@@ -2468,8 +2478,144 @@ function rendiConfronto() {
     options: { maintainAspectRatio: false, cutout: '58%', plugins: { ...legenda } } });
 }
 
+/* =====================================================================
+   PERIODO E CONFRONTI
+   Il filtro anno da solo non basta: per capire se un esercizio va meglio
+   del precedente bisogna confrontare finestre omogenee, perché l'anno in
+   corso è sempre parziale. Qui si sceglie un intervallo di mesi e lo si
+   applica allo stesso modo a ricavi e costi.
+   ===================================================================== */
+
+const MESI_BREVI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+
+const periodoParziale = () => stato.daMese !== 1 || stato.aMese !== 12;
+const meseIso = (iso) => (typeof iso === 'string' && iso.length >= 7) ? +iso.slice(5, 7) : null;
+const nelPeriodo = (iso) => {
+  if (!periodoParziale()) return true;
+  const m = meseIso(iso);
+  return m !== null && m >= stato.daMese && m <= stato.aMese;
+};
+const etichettaPeriodo = () => periodoParziale()
+  ? `${MESI_BREVI[stato.daMese - 1]}–${MESI_BREVI[stato.aMese - 1]}`
+  : 'anno intero';
+
+/* Le voci di personale recuperate dai totali del foglio valgono per l'anno
+   intero e non hanno un mese. In una finestra parziale vanno tolte: se no
+   un anno porterebbe dodici mensilità e l'altro nove, e il confronto
+   direbbe il falso. Le voci senza data seguono la stessa sorte. */
+function costiNelPeriodo(righe) {
+  if (!periodoParziale()) return { righe, personale: 0, senzaData: 0 };
+  let personale = 0, senzaData = 0;
+  const dentro = righe.filter(r => {
+    if (r.tipo === 'personale') { personale++; return false; }
+    if (meseIso(r.data) === null) { senzaData++; return false; }
+    return nelPeriodo(r.data);
+  });
+  return { righe: dentro, personale, senzaData };
+}
+
+/* Come chiamare i totali quando la finestra è parziale: dirlo nel titolo
+   evita che un numero al netto del personale venga letto come costo pieno. */
+const dicituraCosti = () => periodoParziale()
+  ? 'costi al netto del personale' : 'costi di gestione';
+
+/* Vista dei costi per sezionale: di ogni voce si prende solo la quota
+   attribuita al gruppo che corrisponde a quel sezionale. I costi comuni,
+   che non sono attribuiti a nessun gruppo, restano fuori per costruzione. */
+function costiDelSezionale(righe, sez) {
+  if (sez === 'TUTTI') return righe;
+  const gruppi = Object.keys(GRUPPI_COSTI).filter(g => GRUPPI_COSTI[g].sezionale === sez);
+  if (!gruppi.length) return [];
+  const out = [];
+  righe.forEach(r => {
+    let quota = 0; const diretti = {};
+    gruppi.forEach(g => { const v = (r.diretti || {})[g]; if (v) { quota += v; diretti[g] = v; } });
+    if (quota > 0) out.push({ ...r, importo: Math.round(quota * 100) / 100, diretti, comuni: {}, ripartito: Math.round(quota * 100) / 100 });
+  });
+  return out;
+}
+
+/* Sezionali che hanno effettivamente dei costi: gli altri non vanno offerti
+   come filtro, perché darebbero una schermata vuota senza spiegazione. */
+function sezionaliConCosti() {
+  const gruppi = new Set(store.costi.flatMap(r => Object.keys(r.diretti || {})));
+  return [...new Set([...gruppi].map(g => sezionaleDiGruppo(g)).filter(Boolean))].sort();
+}
+
+/* Un anno di costi, ridotto alla finestra e al sezionale correnti. */
+function costiAnno(anno) {
+  const base = costiDelSezionale(store.costi.filter(r => r.anno === anno), stato.sezionale);
+  return costiNelPeriodo(base).righe;
+}
+
+/* Confronto fra anni sui costi: stessa finestra di mesi per tutti. */
+function confrontoCostiAnni() {
+  const anni = [...new Set(store.costi.map(r => r.anno))].sort();
+  return anni.map(anno => {
+    const righe = costiAnno(anno);
+    const k = indicatoriCosti(righe);
+    return {
+      anno, totale: k.totale, personale: k.personale, diretti: k.diretti,
+      comuni: k.comuni, voci: k.voci,
+      gruppi: Object.fromEntries(k.gruppi.map(g => [g.gruppo, g.totale]))
+    };
+  });
+}
+
+/* Confronto fra anni su ricavi, costi e margine. I ricavi seguono la stessa
+   finestra dei costi, altrimenti si confronterebbero periodi diversi. */
+function confrontoMargineAnni() {
+  const anniCosti = [...new Set(store.costi.map(r => r.anno))];
+  const anniRic = [...new Set(TUTTE.map(r => r.anno))];
+  const anni = [...new Set([...anniCosti, ...anniRic])].filter(a => anniCosti.includes(a) && anniRic.includes(a)).sort();
+  return anni.map(anno => {
+    const rc = costiAnno(anno);
+    const costi = somma(rc.filter(r => r.tipo !== 'utili'), r => r.importo);
+    const ricavi = somma(TUTTE.filter(r =>
+      r.anno === anno &&
+      (stato.sezionale === 'TUTTI' || r.sezionale === stato.sezionale) &&
+      nelPeriodo(r.data_doc)), r => r.imponibile);
+    return {
+      anno, ricavi, costi, margine: ricavi - costi,
+      marginePct: ricavi > 0 ? (ricavi - costi) / ricavi * 100 : null,
+      incidenza: ricavi > 0 ? costi / ricavi * 100 : null
+    };
+  });
+}
+
+/* Il segno della variazione: su un costo che scende il verde è corretto,
+   su un ricavo che scende no. Da qui il parametro. */
+const segno = (v, invertito) => {
+  if (v === null || !isFinite(v)) return '—';
+  const buono = invertito ? v < 0 : v > 0;
+  return `<span class="${buono ? 'su' : 'giu'}">${v > 0 ? '+' : ''}${pct(v)}</span>`;
+};
+
+/* Avviso sulle voci lasciate fuori dalla finestra: senza, i totali di un
+   confronto parziale sembrerebbero sbagliati. */
+function notaPeriodo(righeAnno) {
+  if (!periodoParziale()) return;
+  const tolte = store.costi.filter(r =>
+    r.tipo !== 'utili' &&
+    (stato.anno === 'TUTTI' || r.anno === +stato.anno) &&
+    (r.tipo === 'personale' || meseIso(r.data) === null));
+  if (!tolte.length) return;
+  const pers = tolte.filter(r => r.tipo === 'personale');
+  const senza = tolte.filter(r => r.tipo !== 'personale');
+  let t = `La finestra <strong>${etichettaPeriodo()}</strong> tiene fuori ${num(tolte.length)} voci per ${euro(somma(tolte, r => r.importo))}. `;
+  if (pers.length) {
+    t += `Il costo del personale è escluso da <strong>tutti</strong> gli anni, non solo da quelli in cui manca il mese: nel 2025 sta nei totali del foglio senza data, nel 2026 è in elenco mese per mese. Tenerlo dove c'è e toglierlo dove non c'è farebbe apparire una crescita che non esiste. `;
+  }
+  if (senza.length) t += `${num(senza.length)} voci non hanno una data utilizzabile. `;
+  t += 'I numeri di questa finestra sono quindi al netto del personale. Sull\'anno intero rientra tutto.';
+  box('warn-box', 'Nella finestra scelta il personale resta fuori.', t);
+}
+
 function costiVisti() {
-  return store.costi.filter(r => stato.anno === 'TUTTI' || r.anno === +stato.anno);
+  const base = costiDelSezionale(
+    store.costi.filter(r => stato.anno === 'TUTTI' || r.anno === +stato.anno),
+    stato.sezionale);
+  return costiNelPeriodo(base).righe;
 }
 
 function rendiCosti() {
@@ -2489,10 +2635,12 @@ function rendiCosti() {
   const persone = costiPerPersona(righe);
 
   let h = '<div class="fascia-grid">';
-  h += fascia('blu', 'euro', 'Costi di gestione', euro(k.totale),
+  h += fascia('blu', 'euro', dicituraCosti().charAt(0).toUpperCase() + dicituraCosti().slice(1), euro(k.totale),
               `${num(k.voci)} voci · ${stato.anno === 'TUTTI' ? anni.join(' · ') : stato.anno}`);
-  h += fascia('blu', 'clienti', 'Costo del personale', euro(k.personale),
-              k.totale ? `${pct(k.personale / k.totale * 100)} del totale` : '');
+  h += periodoParziale()
+    ? fascia('blu', 'clienti', 'Costo del personale', '—', 'escluso dalla finestra scelta')
+    : fascia('blu', 'clienti', 'Costo del personale', euro(k.personale),
+             k.totale ? `${pct(k.personale / k.totale * 100)} del totale` : '');
   h += fascia('blu', 'carta', 'Costi comuni', euro(k.comuni),
               'ripartiti per quote fra i soci');
   h += fascia('blu', 'torta', 'Costi diretti ai gruppi', euro(k.diretti),
@@ -2599,7 +2747,62 @@ function rendiCosti() {
       ], ut, { nota: `Totale ${euro(k.utiliSoci)}. Distribuzione di risultato, esclusa da totali, grafici e confronti.` }) + '</div>';
   }
 
+
+  notaPeriodo();
+
+  /* ------------------------------- confronto fra anni ------------------ */
+  const ca = confrontoCostiAnni().filter(x => x.voci > 0);
+  if (ca.length > 1) {
+    const gruppiTutti = [...new Set(ca.flatMap(x => Object.keys(x.gruppi)))]
+      .sort((g1, g2) => somma(ca, x => x.gruppi[g2] || 0) - somma(ca, x => x.gruppi[g1] || 0));
+    const ult = ca[ca.length - 1], pen = ca[ca.length - 2];
+
+    h += `<div class="chart-card"><h3>Confronto fra anni · ${esc(etichettaPeriodo())}</h3>
+      <div class="chart-wrap-lg"><canvas id="kConfronto"></canvas></div>` +
+      tabella([
+        { t: 'Voce', v: r => esc(r.nome) },
+        ...ca.map(x => ({ t: String(x.anno), num: true, v: r => r.per[x.anno] ? euro(r.per[x.anno]) : '—' })),
+        { t: `Var. ${pen.anno}→${ult.anno}`, num: true,
+          v: r => segno(variazione(r.per[ult.anno] || 0, r.per[pen.anno] || 0), true) }
+      ], [
+        { nome: dicituraCosti().charAt(0).toUpperCase() + dicituraCosti().slice(1),
+          per: Object.fromEntries(ca.map(x => [x.anno, x.totale])) },
+        ...(periodoParziale() ? [] : [{ nome: 'di cui personale', per: Object.fromEntries(ca.map(x => [x.anno, x.personale])) }]),
+        { nome: 'di cui comuni', per: Object.fromEntries(ca.map(x => [x.anno, x.comuni])) },
+        ...gruppiTutti.map(g => ({
+          nome: nomeGruppo(g), per: Object.fromEntries(ca.map(x => [x.anno, x.gruppi[g] || 0])) }))
+      ], { nota: periodoParziale()
+            ? `Ogni anno è calcolato sugli stessi mesi (${etichettaPeriodo()}) e al netto del personale, così il paragone è fra grandezze omogenee.`
+            : 'Anni interi. Restringi il periodo per confrontare l\'anno in corso con lo stesso tratto di quello prima.' }) + '</div>';
+
+    const vr = variazione(ult.totale, pen.totale);
+    if (vr !== null) {
+      box('evolution-box',
+        vr > 0 ? `I ${dicituraCosti()} crescono del ${pct(vr)} rispetto al ${pen.anno}.`
+               : `I ${dicituraCosti()} calano del ${pct(Math.abs(vr))} rispetto al ${pen.anno}.`,
+        `Sulla finestra ${etichettaPeriodo()} il ${ult.anno} vale ${euro(ult.totale)} contro ${euro(pen.totale)} del ${pen.anno}.
+         ${periodoParziale()
+           ? 'I due anni coprono gli stessi mesi e sono entrambi al netto del personale: la differenza non dipende né dal calendario né da come il foglio registra gli stipendi.'
+           : `Attenzione però: il ${ult.anno} potrebbe non essere ancora chiuso, e un anno intero contro uno parziale non è un paragone. Restringi il periodo per essere sicuro.`}`);
+    }
+  }
+
   pubblica('costi', h);
+
+  if (ca.length > 1) {
+    const gr = [...new Set(ca.flatMap(x => Object.keys(x.gruppi)))]
+      .sort((g1, g2) => somma(ca, x => x.gruppi[g2] || 0) - somma(ca, x => x.gruppi[g1] || 0));
+    const toni = ['#b3cadf', '#78a8c8', '#3f7fa8', '#0b4d7c'];
+    disegna('kConfronto', { type: 'bar',
+      data: { labels: gr.map(nomeGruppo),
+        datasets: ca.map((x, i) => ({ label: String(x.anno),
+          data: gr.map(g => x.gruppi[g] || 0),
+          backgroundColor: toni[(toni.length - ca.length + i + toni.length) % toni.length], borderRadius: 4 })) },
+      options: { maintainAspectRatio: false,
+        scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
+                  x: { grid: { display: false } } },
+        plugins: { ...legenda, tooltip: { callbacks: { label: t => `${t.dataset.label}: ${euro(t.parsed.y)}` } } } } });
+  }
 
   const colGruppi = ['#0b4d7c', '#3f7fa8', '#b04434', '#a8741a', '#5d6f84', '#0b4d7c'];
   disegna('kGruppi', { type: 'bar',
@@ -2657,8 +2860,10 @@ function rendiMargini() {
   const margine = c.totRicavi - c.totCosti;
 
   let h = '<div class="fascia-grid">';
-  h += fascia('blu', 'euro', `Ricavi ${anno}`, euro(c.totRicavi), 'gruppi con costi confrontabili');
-  h += fascia('blu', 'carta', `Costi ${anno}`, euro(c.totCosti), 'diretti, personale e quote attribuite');
+  h += fascia('blu', 'euro', `Ricavi ${anno}${periodoParziale() ? ' · ' + etichettaPeriodo() : ''}`,
+              euro(c.totRicavi), 'gruppi con costi confrontabili');
+  h += fascia('blu', 'carta', `Costi ${anno}${periodoParziale() ? ' · ' + etichettaPeriodo() : ''}`,
+              euro(c.totCosti), periodoParziale() ? 'al netto del personale' : 'diretti, personale e quote attribuite');
   h += fascia(margine >= 0 ? 'verde' : 'ambra', 'crescita', 'Margine', euro(margine),
               c.totRicavi ? `${pct(margine / c.totRicavi * 100)} sui ricavi` : '');
   h += fascia('ambra', 'torta', 'Incidenza costi', c.totRicavi ? pct(c.totCosti / c.totRicavi * 100) : '—',
@@ -2712,23 +2917,7 @@ function rendiMargini() {
        ${pct(c.comuniNonAttribuiti / (c.totRicavi || 1) * 100)} dei ricavi.`);
   }
 
-  // confronto fra anni, se disponibili
-  if (comuni.length > 1) {
-    const serie = comuni.map(a => {
-      const x = confrontoRicaviCosti(TUTTE, store.costi, a);
-      return { anno: a, ricavi: x.totRicavi, costi: x.totCosti, margine: x.totRicavi - x.totCosti };
-    });
-    const u = serie[serie.length - 1], p = serie[serie.length - 2];
-    box('evolution-box', 'Come si muove il margine fra gli anni.',
-      `Dal ${p.anno} al ${u.anno} i ricavi passano da ${euro(p.ricavi)} a ${euro(u.ricavi)} e i costi da
-       ${euro(p.costi)} a ${euro(u.costi)}. Il margine va da ${euro(p.margine)} a ${euro(u.margine)}.
-       ${(u.ricavi > p.ricavi && u.costi / u.ricavi < p.costi / p.ricavi)
-         ? 'I ricavi crescono più dei costi: la marginalità migliora, non è solo effetto del volume.'
-         : (u.costi / u.ricavi > p.costi / p.ricavi)
-           ? 'I costi crescono più dei ricavi: anche a fatturato in aumento la marginalità si assottiglia.'
-           : 'Ricavi e costi si muovono in proporzione simile.'}
-       Attenzione a un punto: gli anni coprono periodi diversi, e il ${u.anno} è ancora parziale.`);
-  }
+  notaPeriodo();
 
   h += `<div class="chart-card"><h3>Dettaglio per gruppo di lavoro</h3>` +
     tabella([
@@ -2742,7 +2931,48 @@ function rendiMargini() {
       { t: 'Incidenza costi', num: true, v: r => r.incidenza === null ? '—' : pct(r.incidenza) }
     ], c.righe, { nota: `Anno ${anno}. I gruppi senza sezionale di fatturato non compaiono in questa tabella.` }) + '</div>';
 
+
+  /* ------------------------------- confronto fra anni ------------------ */
+  const ma = confrontoMargineAnni().filter(x => x.ricavi > 0 || x.costi > 0);
+  if (ma.length > 1) {
+    const ult = ma[ma.length - 1], pen = ma[ma.length - 2];
+    h += `<div class="chart-card"><h3>Ricavi, costi e margine per anno · ${esc(etichettaPeriodo())}</h3>
+      <div class="chart-wrap-lg"><canvas id="mConfronto"></canvas></div>` +
+      tabella([
+        { t: 'Anno', v: r => r.anno },
+        { t: 'Ricavi', num: true, v: r => euro(r.ricavi) },
+        { t: 'Costi', num: true, v: r => euro(r.costi) },
+        { t: 'Margine', num: true, v: r => `<span class="${r.margine >= 0 ? 'su' : 'giu'}">${euro(r.margine)}</span>` },
+        { t: 'Margine %', num: true, v: r => r.marginePct === null ? '—' : pct(r.marginePct) },
+        { t: 'Incidenza costi', num: true, v: r => r.incidenza === null ? '—' : pct(r.incidenza) }
+      ], ma, { nota: periodoParziale()
+          ? `Tutti gli anni sulla finestra ${etichettaPeriodo()}: ricavi e costi seguono gli stessi mesi, e i costi sono al netto del personale — il margine qui è quindi più alto di quello reale, ma confrontabile fra anni.`
+          : 'Anni interi. Restringi il periodo per confrontare l\'anno in corso con lo stesso tratto di quello prima.' }) + '</div>';
+
+    const vm = variazione(ult.marginePct, pen.marginePct);
+    box('evolution-box', 'Come si muove la marginalità.',
+      `Sulla finestra ${etichettaPeriodo()} il margine passa da ${euro(pen.margine)} del ${pen.anno}
+       a ${euro(ult.margine)} del ${ult.anno}${pen.marginePct !== null && ult.marginePct !== null
+         ? `, cioè dal ${pct(pen.marginePct)} al ${pct(ult.marginePct)} sui ricavi` : ''}.
+       ${vm !== null && vm < 0
+         ? 'La marginalità si assottiglia: i costi crescono più dei ricavi.'
+         : 'La marginalità tiene o migliora.'}
+       ${periodoParziale() ? '' : `Il ${ult.anno} potrebbe essere ancora parziale: per un paragone pulito restringi la finestra.`}`);
+  }
+
   pubblica('margini', h);
+
+  if (ma.length > 1) {
+    disegna('mConfronto', { type: 'bar',
+      data: { labels: ma.map(x => String(x.anno)), datasets: [
+        { label: 'Ricavi', data: ma.map(x => x.ricavi), backgroundColor: '#0b4d7c', borderRadius: 4 },
+        { label: 'Costi',  data: ma.map(x => x.costi),  backgroundColor: '#b04434', borderRadius: 4 },
+        { label: 'Margine', data: ma.map(x => x.margine), backgroundColor: '#14795e', borderRadius: 4 }] },
+      options: { maintainAspectRatio: false,
+        scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
+                  x: { grid: { display: false } } },
+        plugins: { ...legenda, tooltip: { callbacks: { label: t => `${t.dataset.label}: ${euro(t.parsed.y)}` } } } } });
+  }
 
   disegna('mBarre', { type: 'bar',
     data: { labels: c.righe.map(r => r.nome), datasets: [
@@ -2971,10 +3201,11 @@ function rendiToolbar(root) {
         title="${esc(SOCIETA[c].nome)}">${esc(SOCIETA[c].breve)}</button>`).join('') + '</div>';
   }
   const soloAnno = stato.tab === 'costi' || stato.tab === 'margini';
-  if (sezDisp.length > 1 && !soloAnno) {
+  const sezUtili = soloAnno ? sezionaliConCosti() : sezDisp;
+  if (sezUtili.length > 1) {
     h += `<span class="filtro-label">Sezionale</span><div class="filtro" data-g="sezionale">
       <button data-v="TUTTI" aria-pressed="${stato.sezionale === 'TUTTI'}">Vista d'insieme</button>` +
-      sezDisp.map(s => `<button data-v="${s}" aria-pressed="${stato.sezionale === s}"
+      sezUtili.map(s => `<button data-v="${s}" aria-pressed="${stato.sezionale === s}"
         title="Sezionale ${esc(s)}">${esc(nomeSez(stato.societa, s))}</button>`).join('') + '</div>';
   }
   const anniCosti = [...new Set(store.costi.map(r => r.anno))].sort((a, b) => b - a);
@@ -2985,13 +3216,38 @@ function rendiToolbar(root) {
       anniMostrati.map(a => `<button data-v="${a}" aria-pressed="${stato.anno === String(a)}">${a}</button>`).join('') + '</div>';
   }
 
+  const opz = (sel) => MESI_BREVI.map((m, i) =>
+    `<option value="${i + 1}" ${sel === i + 1 ? 'selected' : ''}>${m}</option>`).join('');
+  h += `<span class="filtro-label">Periodo</span>
+    <div class="periodo">
+      <select id="daMese" aria-label="Dal mese">${opz(stato.daMese)}</select>
+      <span class="periodo-sep">→</span>
+      <select id="aMese" aria-label="Al mese">${opz(stato.aMese)}</select>
+      ${periodoParziale() ? '<button type="button" class="periodo-reset" id="azzeraPeriodo">anno intero</button>' : ''}
+    </div>`;
+
   const tb = root && root.querySelector('.filtri');
   if (!tb) return;                 // l'archivio non ha filtri: non è un'analisi
   tb.innerHTML = h;
+  const cambiaMese = () => {
+    let da = +tb.querySelector('#daMese').value, a = +tb.querySelector('#aMese').value;
+    if (da > a) a = da;               // una finestra al contrario non vuol dire niente
+    stato.daMese = da; stato.aMese = a;
+    ricalcola(); mostra();
+  };
+  ['#daMese', '#aMese'].forEach(sel => {
+    const el = tb.querySelector(sel);
+    if (el) el.addEventListener('change', cambiaMese);
+  });
+  const azz = tb.querySelector('#azzeraPeriodo');
+  if (azz) azz.addEventListener('click', () => {
+    stato.daMese = 1; stato.aMese = 12; ricalcola(); mostra();
+  });
+
   tb.querySelectorAll('.filtro').forEach(f => f.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     stato[f.dataset.g] = b.dataset.v;
-    if (f.dataset.g === 'societa') { stato.sezionale = 'TUTTI'; stato.anno = 'TUTTI'; }
+    if (f.dataset.g === 'societa') { stato.sezionale = 'TUTTI'; stato.anno = 'TUTTI'; stato.daMese = 1; stato.aMese = 12; }
     ricalcola(); mostra();
   }));
 }
