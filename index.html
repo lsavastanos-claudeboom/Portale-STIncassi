@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>STIncassi — ST Consulting &amp; Studio EC</title>
+<meta name="description" content="Analisi degli incassi, dei tempi di pagamento e dei costi dello studio.">
+<meta name="theme-color" content="#3d7ff5">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'%3E%3Crect width='44' height='44' rx='11' fill='%233d7ff5'/%3E%3Ccircle cx='22' cy='22' r='11' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-dasharray='58 69' transform='rotate(-90 22 22)'/%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -50,14 +56,33 @@ h1, h2, h3, h4 { color: var(--inchiostro); margin: 0; font-weight: 700; letter-s
 a { color: var(--blu); }
 :focus-visible { outline: 2px solid var(--blu); outline-offset: 2px; }
 
+/* Riscontro alla pressione: senza, il clic non "sente" nulla sotto il dito. */
+.btn:active:not(:disabled),
+.nav button:active,
+.filtro button:active,
+.tag-azione:active { transform: translateY(1px) scale(.995); }
+.kpi-card:active { transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) {
+  .btn:active:not(:disabled), .nav button:active, .filtro button:active,
+  .tag-azione:active, .kpi-card:active { transform: none; }
+}
+
+/* Chi naviga da tastiera deve poter saltare la colonna laterale. */
+.salta {
+  position: absolute; left: -9999px; top: 8px; z-index: 200;
+  background: var(--carta); color: var(--inchiostro); padding: 10px 16px;
+  border-radius: 10px; box-shadow: var(--ombra-lg); font-weight: 600;
+}
+.salta:focus { left: 8px; }
+
 /* ------------------------------------------------------------ impianto */
-.app { display: flex; min-height: 100vh; }
+.app { display: flex; min-height: 100vh; min-height: 100dvh; }
 
 .lato {
   width: var(--lato); flex: 0 0 var(--lato); background: var(--carta);
   border-right: 1px solid var(--bordo); padding: 22px 14px 18px;
   display: flex; flex-direction: column; gap: 22px;
-  position: sticky; top: 0; height: 100vh;
+  position: sticky; top: 0; height: 100vh; height: 100dvh;
 }
 .marchio-riga { display: flex; align-items: center; gap: 11px; padding: 0 8px; }
 .marchio-testo h1 { font-size: 1.2rem; line-height: 1.15; }
@@ -137,7 +162,7 @@ a { color: var(--blu); }
 .kpi-card.red    .kpi-icona { background: #fdeaec; color: var(--rosso); }
 .kpi-testo { min-width: 0; }
 .kpi-label { font-size: .74rem; font-weight: 600; color: var(--tenue); letter-spacing: .02em; }
-.kpi-value { font-size: 1.55rem; font-weight: 700; color: var(--inchiostro); line-height: 1.2; margin-top: 2px; letter-spacing: -.02em; }
+.kpi-value { font-size: 1.55rem; font-weight: 700; color: var(--inchiostro); line-height: 1.2; margin-top: 2px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .kpi-sub { font-size: .76rem; color: var(--tenue); margin-top: 2px; }
 .delta { font-size: .76rem; font-weight: 700; margin-top: 4px; }
 .delta.up { color: var(--verde); } .delta.down { color: var(--rosso); } .delta.neu { color: var(--ambra); }
@@ -154,7 +179,7 @@ a { color: var(--blu); }
 .fascia.ambra { background: linear-gradient(135deg, #fbb63f, #e08a10); }
 .fascia-icona { flex: 0 0 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.22); display: grid; place-items: center; }
 .fascia-label { font-size: .75rem; font-weight: 600; opacity: .92; }
-.fascia-valore { font-size: 1.62rem; font-weight: 700; line-height: 1.15; letter-spacing: -.02em; }
+.fascia-valore { font-size: 1.62rem; font-weight: 700; line-height: 1.15; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .fascia-sub { font-size: .74rem; opacity: .85; margin-top: 1px; }
 
 .chart-card { background: var(--carta); border-radius: var(--r-lg); padding: 20px 22px; box-shadow: var(--ombra); margin-bottom: 18px; }
@@ -381,6 +406,7 @@ footer { padding: 22px 28px 40px; font-size: .78rem; color: var(--tenue); }
   </form>
 </div>
 
+<a class="salta" href="#principale">Salta al contenuto</a>
 <div class="app">
 
   <aside class="lato">
@@ -395,7 +421,7 @@ footer { padding: 22px 28px 40px; font-size: .78rem; color: var(--tenue); }
     <div class="lato-piede" id="latoPiede"></div>
   </aside>
 
-  <div class="principale">
+  <main class="principale" id="principale">
     <div class="cima" id="cima" hidden>
       <div class="cima-riga">
         <div>
@@ -448,7 +474,7 @@ footer { padding: 22px 28px 40px; font-size: .78rem; color: var(--tenue); }
     </div>
 
     <footer><span id="footer-utente"></span><span id="footer-info"></span></footer>
-  </div>
+  </main>
 </div>
 
 <script>
