@@ -1213,8 +1213,11 @@ const GRUPPI_COSTI = {
   PAGHE:        { nome: 'Paghe',        sezionale: 'P', societa: 'ST' },
   DEFINA:       { nome: 'Defina',       sezionale: 'D', societa: 'ST' },
   'STUDIO EC':  { nome: 'Studio EC',    sezionale: null, societa: 'ST', fuoriMatch: true },
-  CRI:          { nome: 'CRI',          sezionale: null, societa: 'ST', fuoriMatch: true }
+  CRI:          { nome: 'Defina',       sezionale: 'D', societa: 'ST' }
 };
+const ALIAS_GRUPPO = { CRI: 'DEFINA', TECNACCISE: 'TECNACISSE' };
+const gruppoCanonico = (g) => ALIAS_GRUPPO[SU(g)] || SU(g);
+
 const nomeGruppo = (g) => (GRUPPI_COSTI[g] || {}).nome || g;
 const sezionaleDiGruppo = (g) => (GRUPPI_COSTI[g] || {}).sezionale || null;
 
@@ -1222,7 +1225,9 @@ const sezionaleDiGruppo = (g) => (GRUPPI_COSTI[g] || {}).sezionale || null;
    Finché resta vuota i costi comuni non vengono attribuiti ai gruppi:
    restano un blocco a sé, che è più onesto di una ripartizione inventata.
    Formato: { LUK: { STUDIRIUNITI: 0.6, TECNACISSE: 0.4 }, ... } */
-const QUOTE_PERSONE = {};
+const QUOTE_PERSONE = {
+  CRI: { DEFINA: 1 }        // Cristina Defina: la sua quota è tutta sul suo sezionale
+};
 const personeMappate = () => Object.keys(QUOTE_PERSONE).length > 0;
 
 const NORM = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
@@ -1404,8 +1409,8 @@ function costiPerGruppo(righe) {
 
   righe.forEach(r => {
     if (r.tipo === 'utili') return;                 // non è costo di gestione
-    Object.entries(r.diretti || {}).forEach(([g, v]) => {
-      const e = tocca(g);
+    Object.entries(r.diretti || {}).forEach(([g0, v]) => {
+      const e = tocca(gruppoCanonico(g0));
       if (r.tipo === 'personale') e.personale += v; else e.diretti += v;
       e.totale += v;
     });
@@ -1413,7 +1418,7 @@ function costiPerGruppo(righe) {
       const quote = QUOTE_PERSONE[SU(p)];
       if (!quote) { comuniNonAttribuiti += v; return; }
       Object.entries(quote).forEach(([g, q]) => {
-        const e = tocca(g); e.comuni += v * q; e.totale += v * q;
+        const e = tocca(gruppoCanonico(g)); e.comuni += v * q; e.totale += v * q;
       });
     });
   });
@@ -1438,7 +1443,7 @@ function costiPerTipologia(righe, limite = 15) {
     if (!acc[k]) acc[k] = { tipologia: k, importo: 0, voci: 0 };
     acc[k].importo += r.importo; acc[k].voci++;
   });
-  return Object.values(acc).sort((a, b) => b.importo - a.importo).slice(0, limite);
+  return Object.values(acc).sort((a, b) => Math.abs(b.importo) - Math.abs(a.importo)).slice(0, limite);
 }
 
 function costiPerFornitore(righe, limite = 20) {
@@ -1449,7 +1454,7 @@ function costiPerFornitore(righe, limite = 20) {
     if (!acc[k]) acc[k] = { fornitore: k, importo: 0, voci: 0 };
     acc[k].importo += r.importo; acc[k].voci++;
   });
-  return Object.values(acc).sort((a, b) => b.importo - a.importo).slice(0, limite);
+  return Object.values(acc).sort((a, b) => Math.abs(b.importo) - Math.abs(a.importo)).slice(0, limite);
 }
 
 function indicatoriCosti(righe) {
@@ -1463,7 +1468,9 @@ function indicatoriCosti(righe) {
     totale: tot, personale: pers, utiliSoci: utili, voci: gest.length,
     diretti, comuni: somma(costiPerPersona(righe), p => p.importo),
     comuniNonAttribuiti, gruppi,
-    nonRipartito: Math.max(0, tot - diretti - somma(costiPerPersona(righe), p => p.importo))
+    nonRipartito: Math.round((tot - diretti - somma(costiPerPersona(righe), p => p.importo)) * 100) / 100,
+    noteCredito: gest.filter(r => r.importo < 0).length,
+    noteCreditoTot: somma(gest.filter(r => r.importo < 0), r => r.importo)
   };
 }
 
@@ -2526,11 +2533,23 @@ function costiDelSezionale(righe, sez) {
   if (sez === 'TUTTI') return righe;
   const gruppi = Object.keys(GRUPPI_COSTI).filter(g => GRUPPI_COSTI[g].sezionale === sez);
   if (!gruppi.length) return [];
+  const canonici = new Set(gruppi.map(gruppoCanonico));
   const out = [];
   righe.forEach(r => {
-    let quota = 0; const diretti = {};
-    gruppi.forEach(g => { const v = (r.diretti || {})[g]; if (v) { quota += v; diretti[g] = v; } });
-    if (quota > 0) out.push({ ...r, importo: Math.round(quota * 100) / 100, diretti, comuni: {}, ripartito: Math.round(quota * 100) / 100 });
+    let quota = 0; const diretti = {}, comuni = {};
+    Object.entries(r.diretti || {}).forEach(([g0, v]) => {
+      if (v && canonici.has(gruppoCanonico(g0))) { quota += v; diretti[gruppoCanonico(g0)] = (diretti[gruppoCanonico(g0)] || 0) + v; }
+    });
+    Object.entries(r.comuni || {}).forEach(([persona, v]) => {
+      const q = QUOTE_PERSONE[SU(persona)];
+      if (!q) return;
+      let parte = 0;
+      Object.entries(q).forEach(([g, quotaG]) => { if (canonici.has(gruppoCanonico(g))) parte += v * quotaG; });
+      if (parte !== 0) { comuni[persona] = parte; quota += parte; }
+    });
+    // Le rettifiche e le note di credito hanno importo negativo: scartarle
+    // gonfierebbe il totale del sezionale invece di ridurlo.
+    if (quota !== 0) out.push({ ...r, importo: Math.round(quota * 100) / 100, diretti, comuni, ripartito: Math.round(quota * 100) / 100 });
   });
   return out;
 }
@@ -2539,7 +2558,9 @@ function costiDelSezionale(righe, sez) {
    come filtro, perché darebbero una schermata vuota senza spiegazione. */
 function sezionaliConCosti() {
   const gruppi = new Set(store.costi.flatMap(r => Object.keys(r.diretti || {})));
-  return [...new Set([...gruppi].map(g => sezionaleDiGruppo(g)).filter(Boolean))].sort();
+  // Un gruppo può avere costi solo attraverso le quote comuni: è il caso di Defina.
+  Object.values(QUOTE_PERSONE).forEach(q => Object.keys(q).forEach(g => gruppi.add(g)));
+  return [...new Set([...gruppi].map(g => sezionaleDiGruppo(gruppoCanonico(g))).filter(Boolean))].sort();
 }
 
 /* Un anno di costi, ridotto alla finestra e al sezionale correnti. */
@@ -2669,7 +2690,7 @@ function rendiCosti() {
        Restano visibili in fondo alla sezione, così il quadro resta completo.`);
   }
 
-  const gruppiOrd = k.gruppi.filter(g => g.totale > 0);
+  const gruppiOrd = k.gruppi.filter(g => g.totale !== 0);
   if (gruppiOrd.length) {
     const primo = gruppiOrd[0];
     const fuori = gruppiOrd.filter(g => !sezionaleDiGruppo(g.gruppo));
@@ -2692,18 +2713,27 @@ function rendiCosti() {
          : "Le voci provengono tutte dall’elenco costi."}`);
   }
 
-  if (!personeMappate() && k.comuni > 0) {
-    box('warn-box', 'I costi comuni non sono ancora collegati ai gruppi.',
-      `${euro(k.comuni)} sono ripartiti per quote fra ${persone.map(p => esc(p.persona)).join(', ')},
-       cioè per persona e non per gruppo di lavoro. Finché non è impostata la corrispondenza fra persone e gruppi,
-       questi costi restano un blocco a sé e non entrano nel margine per gruppo: attribuirli con un criterio
-       inventato darebbe margini sbagliati proprio dove servono precisi.`);
+  if (k.comuniNonAttribuiti > 0) {
+    const senza = persone.filter(p => !QUOTE_PERSONE[SU(p.persona)]).map(p => esc(p.persona));
+    const con = persone.filter(p => QUOTE_PERSONE[SU(p.persona)]).map(p => esc(p.persona));
+    box('warn-box', `${euro(k.comuniNonAttribuiti)} di costi comuni non sono ancora collegati ai gruppi.`,
+      `Le quote di ${senza.join(', ')} sono ripartite per persona e non per gruppo di lavoro, quindi restano
+       un blocco a sé e non entrano nel margine per gruppo.
+       ${con.length ? `La quota di ${con.join(', ')} è invece attribuita e concorre al margine.` : ''}
+       Attribuire le altre con un criterio inventato darebbe margini sbagliati proprio dove servono precisi.`);
   }
 
-  if (k.nonRipartito > 1) {
+  if (Math.abs(k.nonRipartito) > 1) {
     box('warn-box', 'Voci senza ripartizione.',
       `${euro(k.nonRipartito)} risultano in elenco ma senza attribuzione né a un gruppo né alle quote comuni.
        Compaiono nei costi totali ma non nei margini per gruppo: vale la pena verificarle nel file di origine.`);
+  }
+
+  if (k.noteCredito > 0) {
+    box('insight', `${num(k.noteCredito)} note di credito per ${euro(Math.abs(k.noteCreditoTot))}.`,
+      `Sono voci a importo negativo e riducono il costo, come devono: rientrano nei totali, nei gruppi e nei
+       sezionali con il loro segno. Le trovi in fondo alle classifiche per fornitore e per tipologia, ordinate
+       per peso e non per valore, così una nota grossa non finisce in coda.`);
   }
 
   // -------------------------------- tabelle ------------------------------
@@ -2720,7 +2750,7 @@ function rendiCosti() {
       { t: 'Fatturato', v: g => sezionaleDiGruppo(g.gruppo)
           ? `<span class="tag tag-blue">sezionale ${esc(sezionaleDiGruppo(g.gruppo))}</span>`
           : '<span class="tag tag-grey">nessun sezionale</span>' }
-    ], k.gruppi.filter(g => g.totale > 0)) + '</div>';
+    ], k.gruppi.filter(g => g.totale !== 0)) + '</div>';
 
   h += `<div class="chart-row">
     <div class="chart-card"><h3>Voci di costo</h3>` +
@@ -2806,11 +2836,11 @@ function rendiCosti() {
 
   const colGruppi = ['#0b4d7c', '#3f7fa8', '#b04434', '#a8741a', '#5d6f84', '#0b4d7c'];
   disegna('kGruppi', { type: 'bar',
-    data: { labels: k.gruppi.filter(g => g.totale > 0).map(g => nomeGruppo(g.gruppo)),
+    data: { labels: k.gruppi.filter(g => g.totale !== 0).map(g => nomeGruppo(g.gruppo)),
       datasets: [
-        { label: 'Costi diretti', data: k.gruppi.filter(g => g.totale > 0).map(g => g.diretti), backgroundColor: '#0b4d7c', borderRadius: 4 },
-        { label: 'Personale', data: k.gruppi.filter(g => g.totale > 0).map(g => g.personale), backgroundColor: '#5d6f84', borderRadius: 4 },
-        { label: 'Quota comuni', data: k.gruppi.filter(g => g.totale > 0).map(g => g.comuni), backgroundColor: '#3f7fa8', borderRadius: 4 }] },
+        { label: 'Costi diretti', data: k.gruppi.filter(g => g.totale !== 0).map(g => g.diretti), backgroundColor: '#0b4d7c', borderRadius: 4 },
+        { label: 'Personale', data: k.gruppi.filter(g => g.totale !== 0).map(g => g.personale), backgroundColor: '#5d6f84', borderRadius: 4 },
+        { label: 'Quota comuni', data: k.gruppi.filter(g => g.totale !== 0).map(g => g.comuni), backgroundColor: '#3f7fa8', borderRadius: 4 }] },
     options: { indexAxis: 'y', maintainAspectRatio: false,
       scales: { x: { stacked: true, beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
                 y: { stacked: true, grid: { display: false } } },
