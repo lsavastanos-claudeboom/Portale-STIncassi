@@ -1243,7 +1243,7 @@ const SU = (s) => NORM(s).toUpperCase();
 
 /* Righe che non sono costi di gestione: distribuzione di utili ai soci.
    Restano in archivio come voce separata, fuori dai confronti. */
-const RE_UTILI = /ACCONTI?\s+UTILI|DISTRIBUZIONE\s+UTILI/i;
+const RE_UTILI = /ACCONTI?\s+UTILI|DISTRIBUZIONE\s+UTILI|COMPENS[OI][^A-Z]*(CONSULENZA[^A-Z]*)?SOC[IO]/i;
 /* Totali del personale riportati sotto la riga TOTALE. */
 const RE_TOT_DIP = /TOTALE\s+DIPENDENTI/i;
 /* Voci di costo del personale. Nel 2026 stanno in elenco come righe
@@ -1357,6 +1357,40 @@ async function leggiCosti(file) {
         tipo, origine: 'elenco'
       });
       nAnno++;
+    }
+
+    // 4-bis. Voci di costo sotto la riga TOTALE.
+    let sottoTotale = 0;
+    for (let r = iTotale + 1; r < m.length; r++) {
+      const riga = m[r] || [];
+      const fornitore = NORM(riga[iFornitore]);
+      const tipologia = NORM(riga[iTipologia]);
+      const importo = numeroIt(riga[iImporto]);
+      const data = dataIso(riga[iData]);
+      if (!fornitore || !importo || !data) continue;      // le somme non hanno data
+      if (/^totale/i.test(fornitore)) continue;
+      if (/DIPENDENT/i.test(tipologia)) continue;         // già presi dai totali
+
+      const perGruppo = {}, perPersona = {};
+      colonne.forEach(({ c, nome, comune }) => {
+        const v = numeroIt(riga[c]);
+        if (!v) return;
+        if (comune) perPersona[nome] = (perPersona[nome] || 0) + v;
+        else perGruppo[nome] = (perGruppo[nome] || 0) + v;
+      });
+
+      righe.push({
+        anno, fornitore, tipologia, data,
+        importo: Math.round(importo * 100) / 100,
+        diretti: perGruppo, comuni: perPersona,
+        ripartito: Math.round((somma(Object.values(perGruppo), v => v) + somma(Object.values(perPersona), v => v)) * 100) / 100,
+        tipo: RE_UTILI.test(tipologia) ? 'utili' : RE_PERSONALE.test(tipologia) ? 'personale' : 'gestione',
+        origine: 'sottoTotale'
+      });
+      sottoTotale++;
+    }
+    if (sottoTotale) {
+      avvisi.push(`Foglio ${anno}: lette ${sottoTotale} voci collocate sotto la riga TOTALE.`);
     }
 
     // 5. Personale: nel 2025 non è in elenco ma nei totali sotto la riga
