@@ -3147,10 +3147,16 @@ function bilancinoSoci() {
 
   const righeGruppo = Object.keys(SOCI).map(g => {
     const sez = sezionaleDiGruppo(g);
-    const ricavi = sez ? somma(TUTTE.filter(r => r.sezionale === sez &&
-      (stato.anno === 'TUTTI' || r.anno === +stato.anno) && nelPeriodo(r.data_doc)), r => r.imponibile) : 0;
+    const delGruppo = sez ? TUTTE.filter(r => r.sezionale === sez) : [];
+    const ricavi = somma(delGruppo.filter(r => r.data_incasso &&
+      (stato.anno === 'TUTTI' || +r.data_incasso.slice(0, 4) === +stato.anno) &&
+      nelPeriodo(r.data_incasso)), r => r.imponibile);
+    // Quanto è stato emesso nello stesso periodo ma non è ancora rientrato:
+    // non si distribuisce, ma è giusto vederlo.
+    const daIncassare = somma(delGruppo.filter(r => !r.data_incasso &&
+      (stato.anno === 'TUTTI' || r.anno === +stato.anno) && nelPeriodo(r.data_doc)), r => r.imponibile);
     const costi = (perGruppo[g] || {}).totale || 0;
-    return { gruppo: g, nome: nomeGruppo(g), sezionale: sez, ricavi, costi, margine: ricavi - costi };
+    return { gruppo: g, nome: nomeGruppo(g), sezionale: sez, ricavi, daIncassare, costi, margine: ricavi - costi };
   }).sort((a, b) => b.margine - a.margine);
 
   const comuni = {};
@@ -3162,12 +3168,18 @@ function bilancinoSoci() {
     societaCosto(r) === stato.societa && (stato.anno === 'TUTTI' || r.anno === +stato.anno)));
 
   const soci = Object.keys(NOME_SOCIO).map(s => {
-    const da = righeGruppo.map(rg => ({ nome: rg.nome, quota: (SOCI[rg.gruppo] || {})[s] || 0, parte: rg.margine * ((SOCI[rg.gruppo] || {})[s] || 0) }))
-      .filter(x => x.quota > 0);
+    const da = righeGruppo.map(rg => {
+      const q = (SOCI[rg.gruppo] || {})[s] || 0;
+      return { nome: rg.nome, quota: q, ricavi: rg.ricavi * q, costi: rg.costi * q,
+               daIncassare: rg.daIncassare * q, parte: rg.margine * q };
+    }).filter(x => x.quota > 0);
+    const ricavi = somma(da, x => x.ricavi);
+    const daIncassare = somma(da, x => x.daIncassare);
+    const costiGruppi = somma(da, x => x.costi);
     const spettante = somma(da, x => x.parte);
     const suoiComuni = comuni[s] || 0;
     const gia = distrib[s] || 0;
-    return { sigla: s, nome: NOME_SOCIO[s], da, spettante, comuni: suoiComuni,
+    return { sigla: s, nome: NOME_SOCIO[s], da, ricavi, daIncassare, costiGruppi, spettante, comuni: suoiComuni,
              netto: spettante - suoiComuni, gia, saldo: spettante - suoiComuni - gia };
   }).sort((a, b) => b.saldo - a.saldo);
 
@@ -3191,12 +3203,12 @@ function rendiSoci() {
 
   let h = '<div class="fascia-grid">';
   h += fascia('blu', 'euro', 'Risultato da dividere', euro(totSpettante),
-              `margine dei gruppi ${esc(etichettaPeriodo())}`);
+              `su incassato ${esc(etichettaPeriodo())}`);
+  h += fascia('ambra', 'carta', 'Ancora da incassare', euro(somma(b.soci, s => s.daIncassare)),
+              'emesso nel periodo, non rientrato');
   h += fascia('blu', 'carta', 'Già distribuito', euro(totGia), 'acconti sugli utili ai soci');
   h += fascia(totSaldo >= 0 ? 'verde' : 'rosa', 'crescita', 'Saldo da regolare', euro(totSaldo),
               totSaldo >= 0 ? 'ancora da distribuire' : 'distribuito in eccesso');
-  h += fascia('blu', 'torta', 'Costi comuni personali', euro(somma(b.soci, s => s.comuni)),
-              'quote a carico dei singoli');
   h += '</div>' + SEGNAPOSTO;
 
   h += `<div class="chart-row">
@@ -3208,9 +3220,11 @@ function rendiSoci() {
   const primo = b.soci[0], ultimo = b.soci[b.soci.length - 1];
   if (primo && ultimo && primo.sigla !== ultimo.sigla) {
     box('insight', `${esc(primo.nome)} è a credito di ${euro(primo.saldo)}, ${esc(ultimo.nome)} di ${euro(ultimo.saldo)}.`,
-      `Il saldo è quanto spetta al socio sul margine dei suoi gruppi, meno la sua quota di costi comuni,
-       meno quanto ha già incassato come acconto. Un saldo negativo non è una perdita: vuol dire che gli
-       acconti già presi superano il risultato maturato nel periodo scelto.`);
+      `Il conto va letto così: di ogni gruppo il socio prende la sua quota di ricavi <em>e</em> la stessa
+       quota di costi — diretti, personale e comuni attribuiti — e la differenza è il suo margine. Da lì si
+       toglie la sua quota personale dei costi comuni dello studio, poi gli acconti già incassati.
+       Un saldo negativo non è una perdita: vuol dire che gli acconti già presi superano il risultato
+       maturato nel periodo scelto.`);
   }
 
   if (b.nonDivisi.length) {
@@ -3227,6 +3241,15 @@ function rendiSoci() {
        reale è il margine del singolo gruppo.`);
   }
 
+  const totDaIncassare = somma(b.soci, s => s.daIncassare);
+  if (totDaIncassare > 0) {
+    box('warn-box', `${euro(totDaIncassare)} emessi nel periodo non sono ancora rientrati.`,
+      `Il bilancino divide l'incassato, non il fatturato: quella cifra non entra nel risultato da distribuire
+       e comparirà quando i clienti pagheranno. Chi ha gruppi che incassano più lentamente vede quindi un
+       saldo più basso a parità di lavoro svolto. Una avvertenza sul metodo: i ricavi seguono la data di
+       incasso, i costi quella del documento — si distribuisce la cassa, ma i costi sono quelli maturati.`);
+  }
+
   const senzaRicavi = b.righeGruppo.filter(g => g.ricavi === 0 && g.costi > 0);
   if (senzaRicavi.length) {
     box('warn-box', 'Gruppi con costi ma senza fatturato nel periodo.',
@@ -3239,22 +3262,26 @@ function rendiSoci() {
   h += `<div class="chart-card"><h3>Conto per socio</h3>` +
     tabella([
       { t: 'Socio', v: s => esc(s.nome) },
-      { t: 'Da', v: s => s.da.map(x => `${esc(x.nome)} ${pct(x.quota * 100)}`).join(' · ') || '—' },
-      { t: 'Spettante', num: true, v: s => euro(s.spettante) },
-      { t: 'Costi comuni', num: true, v: s => s.comuni ? '−' + euro(s.comuni) : '—' },
+      { t: 'Quote', v: s => s.da.map(x => `${esc(x.nome)} ${pct(x.quota * 100)}`).join(' · ') || '—' },
+      { t: 'Incassato di competenza', num: true, v: s => euro(s.ricavi) },
+      { t: 'Ancora da incassare', num: true, v: s => s.daIncassare ? euro(s.daIncassare) : '—' },
+      { t: 'Costi di competenza', num: true, v: s => s.costiGruppi ? '−' + euro(s.costiGruppi) : '—' },
+      { t: 'Margine', num: true, v: s => `<span class="${s.spettante >= 0 ? 'su' : 'giu'}">${euro(s.spettante)}</span>` },
+      { t: 'Costi comuni suoi', num: true, v: s => s.comuni ? '−' + euro(s.comuni) : '—' },
       { t: 'Netto', num: true, v: s => euro(s.netto) },
       { t: 'Già preso', num: true, v: s => s.gia ? '−' + euro(s.gia) : '—' },
       { t: 'Saldo', num: true, v: s => `<strong class="${s.saldo >= 0 ? 'su' : 'giu'}">${euro(s.saldo)}</strong>` }
-    ], b.soci, { nota: `Periodo ${etichettaPeriodo()}${stato.anno === 'TUTTI' ? '' : ', anno ' + stato.anno}. Il saldo positivo è quanto resta da distribuire.` }) + '</div>';
+    ], b.soci, { nota: `Periodo ${etichettaPeriodo()}${stato.anno === 'TUTTI' ? '' : ', anno ' + stato.anno}. I ricavi sono quelli <strong>incassati</strong> nel periodo, non quelli emessi: si distribuisce ciò che è entrato. Ricavi e costi sono presi per la quota del socio in ciascun gruppo: chi ha il 20% di un gruppo ne porta il 20% dei costi, non solo dei ricavi.` }) + '</div>';
 
   h += `<div class="chart-card"><h3>Margine dei gruppi di lavoro</h3>` +
     tabella([
       { t: 'Gruppo', v: g => esc(g.nome) },
-      { t: 'Ricavi', num: true, v: g => euro(g.ricavi) },
+      { t: 'Incassato', num: true, v: g => euro(g.ricavi) },
+      { t: 'Da incassare', num: true, v: g => g.daIncassare ? euro(g.daIncassare) : '—' },
       { t: 'Costi', num: true, v: g => euro(g.costi) },
       { t: 'Margine', num: true, v: g => `<span class="${g.margine >= 0 ? 'su' : 'giu'}">${euro(g.margine)}</span>` },
       { t: 'Quote', v: g => Object.entries(SOCI[g.gruppo] || {}).map(([s, q]) => `${esc(NOME_SOCIO[s])} ${pct(q * 100)}`).join(' · ') }
-    ], b.righeGruppo) + '</div>';
+    ], b.righeGruppo, { nota: 'Incassato per data di incasso; costi per data documento. Le due basi non coincidono, ed è voluto: si distribuisce la cassa, ma i costi sono quelli maturati.' }) + '</div>';
 
   pubblica('soci', h);
 
