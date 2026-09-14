@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>STIncassi — ST Consulting &amp; Studio EC</title>
-<meta name="description" content="Analisi degli incassi, dei tempi di pagamento e dei costi dello studio.">
+<meta name="description" content="Analisi degli incassi e dei tempi di pagamento dello studio.">
 <meta name="theme-color" content="#0b4d7c">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -149,17 +149,6 @@ a { color: var(--blu); }
 .filtro button:hover { color: var(--inchiostro); }
 .filtro button[aria-pressed="true"] { background: var(--blu); color: #fff; font-weight: 600; }
 .filtro-label { font-size: 12.5px; font-weight: 400; color: var(--tenue); }
-.periodo { display: inline-flex; align-items: center; gap: 6px; background: var(--tinta); border-radius: 999px; padding: 3px 6px; }
-.periodo select {
-  border: 0; background: none; font: inherit; font-size: 13px; color: var(--inchiostro);
-  padding: 3px 4px; border-radius: 999px; cursor: pointer;
-}
-.periodo-sep { color: var(--tenue); font-size: 12px; }
-.periodo-reset {
-  border: 0; background: var(--carta); border-radius: 999px; padding: 4px 11px;
-  font: inherit; font-size: 12.5px; color: var(--testo); cursor: pointer;
-}
-.periodo-reset:hover { color: var(--inchiostro); }
 .spacer { flex: 1; }
 
 .container { padding: 24px 28px 60px; max-width: 1380px; }
@@ -489,9 +478,6 @@ footer { padding: 22px 28px 40px; font-size: .78rem; color: var(--tenue); }
       <div class="section" id="sez-clienti" hidden></div>
       <div class="section" id="sez-attivita" hidden></div>
       <div class="section" id="sez-confronto" hidden></div>
-      <div class="section" id="sez-costi" hidden></div>
-      <div class="section" id="sez-margini" hidden></div>
-      <div class="section" id="sez-soci" hidden></div>
       <div class="section" id="sez-archivio" hidden></div>
     </div>
 
@@ -699,22 +685,16 @@ let db = null, auth = null, utente = null;
    naturalmente caricati e consultati. */
 const BLOCCO = (r) => `${r.societa}_${r.anno_doc || r.data_doc.slice(0, 4)}_${r.sezionale}`;
 
-const BLOCCO_COSTI = (r) => `costi_${r.anno}`;
-
 const store = {
-  righe: [], file: [], costi: [], fileCosti: [], persistente: true, sincronizzato: false,
+  righe: [], file: [], persistente: true, sincronizzato: false,
   carica() {
     try {
       const raw = localStorage.getItem(CHIAVE_ARCHIVIO);
-      if (raw) {
-        const d = JSON.parse(raw);
-        this.righe = d.righe || []; this.file = d.file || [];
-        this.costi = d.costi || []; this.fileCosti = d.fileCosti || [];
-      }
+      if (raw) { const d = JSON.parse(raw); this.righe = d.righe || []; this.file = d.file || []; }
     } catch (e) { this.persistente = false; }
   },
   salva() {
-    try { localStorage.setItem(CHIAVE_ARCHIVIO, JSON.stringify({ righe: this.righe, file: this.file, costi: this.costi, fileCosti: this.fileCosti })); }
+    try { localStorage.setItem(CHIAVE_ARCHIVIO, JSON.stringify({ righe: this.righe, file: this.file })); }
     catch (e) { this.persistente = false; }
   },
 
@@ -722,20 +702,14 @@ const store = {
      l'app mostra qualcosa anche prima che la rete risponda. */
   async scarica() {
     if (!ONLINE || !utente) return;
-    const [blocchi, caricamenti, blocchiCosti, fileCosti] = await Promise.all([
+    const [blocchi, caricamenti] = await Promise.all([
       db.collection('archivio').get(),
-      db.collection('caricamenti').orderBy('caricatoIl', 'desc').limit(80).get(),
-      db.collection('costi').get(),
-      db.collection('caricamentiCosti').orderBy('caricatoIl', 'desc').limit(40).get()
+      db.collection('caricamenti').orderBy('caricatoIl', 'desc').limit(80).get()
     ]);
     const righe = [];
     blocchi.forEach(d => { const v = d.data(); if (Array.isArray(v.righe)) righe.push(...v.righe); });
     this.righe = righe;
     this.file = caricamenti.docs.map(d => d.data());
-    const rc = [];
-    blocchiCosti.forEach(d => { const v = d.data(); if (Array.isArray(v.righe)) rc.push(...v.righe); });
-    this.costi = rc;
-    this.fileCosti = fileCosti.docs.map(d => d.data());
     this.sincronizzato = true;
     this.salva();
   },
@@ -777,7 +751,7 @@ const store = {
     this.salva();
     return { nuove, aggiornate };
   },
-  svuota() { this.righe = []; this.file = []; this.costi = []; this.fileCosti = []; try { localStorage.removeItem(CHIAVE_ARCHIVIO); } catch (e) {} },
+  svuota() { this.righe = []; this.file = []; try { localStorage.removeItem(CHIAVE_ARCHIVIO); } catch (e) {} },
   /* Rimuove le righe di un singolo caricamento e riscrive i blocchi toccati. */
   async eliminaImport(idImport) {
     const daTogliere = this.righe.filter(r => r.imp === idImport);
@@ -804,44 +778,12 @@ const store = {
     return { rimosse: daTogliere.length };
   },
 
-  /* I costi si sostituiscono per anno: un nuovo file dello stesso anno
-     rimpiazza il precedente invece di sommarcisi. */
-  aggiungiCosti(analisi) {
-    const anni = new Set(analisi.righe.map(r => r.anno));
-    const prima = this.costi.filter(r => anni.has(r.anno)).length;
-    this.costi = this.costi.filter(r => !anni.has(r.anno));
-    analisi.righe.forEach(r => { r.imp = analisi.caricatoIl; r.impFile = analisi.nomeFile; });
-    this.costi.push(...analisi.righe);
-    this.fileCosti.unshift({ nomeFile: analisi.nomeFile, anni: analisi.anni,
-      righe: analisi.righe.length, caricatoIl: analisi.caricatoIl, scarti: analisi.scarti.length });
-    this.anniCostiToccati = [...anni];
-    this.salva();
-    return { nuove: analisi.righe.length, sostituite: prima };
-  },
-
-  async sincronizzaCosti(analisi) {
-    if (!ONLINE || !utente) return;
-    const lotto = db.batch();
-    (this.anniCostiToccati || []).forEach(a => {
-      lotto.set(db.collection('costi').doc(`costi_${a}`), {
-        anno: a, righe: this.costi.filter(r => r.anno === a),
-        aggiornatoIl: new Date().toISOString(), aggiornatoDa: utente.email
-      });
-    });
-    lotto.set(db.collection('caricamentiCosti').doc(), {
-      nomeFile: analisi.nomeFile, anni: analisi.anni, righe: analisi.righe.length,
-      caricatoIl: analisi.caricatoIl, scarti: analisi.scarti.length, caricatoDa: utente.email
-    });
-    await lotto.commit();
-  },
-
   async svuotaOnline() {
     if (!ONLINE || !utente) return;
-    const [a, c, k, kc] = await Promise.all([
-      db.collection('archivio').get(), db.collection('caricamenti').get(),
-      db.collection('costi').get(), db.collection('caricamentiCosti').get()]);
+    const [a, c] = await Promise.all([
+      db.collection('archivio').get(), db.collection('caricamenti').get()]);
     const lotto = db.batch();
-    [a, c, k, kc].forEach(q => q.forEach(d => lotto.delete(d.ref)));
+    [a, c].forEach(q => q.forEach(d => lotto.delete(d.ref)));
     await lotto.commit();
   }
 };
@@ -1038,7 +980,7 @@ function movimenti(righe, a1, a2) {
 /* =====================================================================
    5. STATO E FILTRI
    ===================================================================== */
-const stato = { societa: null, sezionale: 'TUTTI', anno: 'TUTTI', daMese: 1, aMese: 12, tab: 'panoramica',
+const stato = { societa: null, sezionale: 'TUTTI', anno: 'TUTTI', tab: 'panoramica',
                 ordineClienti: 'imponibile', discClienti: true, filtroClienti: 'tutti', cerca: '' };
 let TUTTE = [], VISTE = [], REF = null;
 
@@ -1060,8 +1002,7 @@ function ricalcola() {
   TUTTE = prepara(dellaSocieta, REF);
   VISTE = TUTTE.filter(r =>
     (stato.sezionale === 'TUTTI' || r.sezionale === stato.sezionale) &&
-    (stato.anno === 'TUTTI' || r.anno === +stato.anno) &&
-    nelPeriodo(r.data_doc));
+    (stato.anno === 'TUTTI' || r.anno === +stato.anno));
 }
 
 const anniDi = (righe) => [...new Set(righe.map(r => r.anno))].sort();
@@ -1193,366 +1134,6 @@ function logoSVG(arrabbiato, dim = 44) {
 }
 
 /* =====================================================================
-   COSTI
-   Il file di suddivisione costi ha un foglio per anno. Ogni riga è un
-   costo con: fornitore, tipologia, data, importo, e la ripartizione su
-   due blocchi di colonne — i gruppi di lavoro (costo diretto) e i costi
-   comuni, questi ultimi divisi per persona secondo quote fisse.
-
-   L'impaginazione cambia fra un anno e l'altro (riga di intestazione
-   diversa, gruppi diversi), quindi la struttura si riconosce dai
-   contenuti e non da posizioni fisse.
-   ===================================================================== */
-
-/* Corrispondenza fra i gruppi dei costi e i sezionali del fatturato.
-   Studio EC compare fra i costi di ST Consulting ma è una ragione sociale
-   separata: resta nei costi e si esclude dal confronto con i ricavi. */
-const GRUPPI_COSTI = {
-  TECNACISSE:   { nome: 'TecnAccise',   sezionale: 'T', societa: 'ST' },
-  TECNACCISE:   { nome: 'TecnAccise',   sezionale: 'T', societa: 'ST' },
-  STUDIRIUNITI: { nome: 'Studiriuniti', sezionale: 'C', societa: 'ST' },
-  PAGHE:        { nome: 'Paghe',        sezionale: 'P', societa: 'ST' },
-  DEFINA:       { nome: 'Defina',       sezionale: 'D', societa: 'ST' },
-  'STUDIO EC':  { nome: 'Studio EC',    sezionale: null, societa: 'ST', nonGruppo: true },
-  CRI:          { nome: 'Defina',       sezionale: 'D', societa: 'ST' }
-};
-const ALIAS_GRUPPO = { CRI: 'DEFINA', TECNACCISE: 'TECNACISSE' };
-const gruppoCanonico = (g) => ALIAS_GRUPPO[SU(g)] || SU(g);
-
-const nomeGruppo = (g) => (GRUPPI_COSTI[g] || {}).nome || g;
-
-/* La società di una voce di costo. Le righe caricate prima che il campo
-   esistesse non ce l'hanno: si ricava dai gruppi, e in mancanza d'altro
-   resta ST, che è l'unica ragione sociale con un file di costi. */
-const societaCosto = (r) => r.societa
-  || Object.keys(r.diretti || {}).map(g => (GRUPPI_COSTI[gruppoCanonico(g)] || {}).societa).find(Boolean)
-  || 'ST';
-const sezionaleDiGruppo = (g) => (GRUPPI_COSTI[g] || {}).sezionale || null;
-
-/* Corrispondenza persona → gruppo di lavoro per i costi comuni.
-   Finché resta vuota i costi comuni non vengono attribuiti ai gruppi:
-   restano un blocco a sé, che è più onesto di una ripartizione inventata.
-   Formato: { LUK: { STUDIRIUNITI: 0.6, TECNACISSE: 0.4 }, ... } */
-const QUOTE_PERSONE = {
-  CRI: { DEFINA: 1 }        // Cristina Defina: la sua quota è tutta sul suo sezionale
-};
-const personeMappate = () => Object.keys(QUOTE_PERSONE).length > 0;
-
-const NORM = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
-const SU = (s) => NORM(s).toUpperCase();
-
-/* Righe che non sono costi di gestione: distribuzione di utili ai soci.
-   Restano in archivio come voce separata, fuori dai confronti. */
-const RE_UTILI = /ACCONTI?\s+UTILI|DISTRIBUZIONE\s+UTILI|COMPENS[OI][^A-Z]*(CONSULENZA[^A-Z]*)?SOC[IO]/i;
-/* Totali del personale riportati sotto la riga TOTALE. */
-const RE_TOT_DIP = /TOTALE\s+DIPENDENTI/i;
-/* Voci di costo del personale. Nel 2026 stanno in elenco come righe
-   normali, nel 2025 solo nei totali: riconoscerle in entrambi i casi rende
-   confrontabile il dato fra gli anni. */
-const RE_PERSONALE = /DIPENDENT|COSTO DEL PERSONALE|STIPEND|SALARI|TREDICESIM/i;
-
-const SIGLE_GRUPPO = [
-  [/\bSR\b|STUDIRIUNITI|STUDI RIUNITI/i, 'STUDIRIUNITI'],
-  [/\bTE\b|\bTN\b|TECNACC?ISSE|TECNACCISE/i, 'TECNACISSE'],
-  [/\bPA\b|PAGHE/i, 'PAGHE'],
-  [/\bEC\b|STUDIO EC/i, 'STUDIO EC'],
-  [/DEFINA/i, 'DEFINA']
-];
-function gruppoDaTesto(t) {
-  const s = SU(t);
-  for (const [re, g] of SIGLE_GRUPPO) if (re.test(s)) return g;
-  return null;
-}
-
-/**
- * Legge un file di suddivisione costi.
- * Restituisce { nomeFile, anni, righe, avvisi, scarti, caricatoIl }.
- */
-async function leggiCosti(file) {
-  // raw:true restituisce i numeri come numeri: con la formattazione
-  // testuale arriverebbero in stile americano e verrebbero letti male.
-  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true, raw: true });
-  const righe = [];
-  const avvisi = [];
-  const scarti = [];
-  const anni = [];
-
-  wb.SheetNames.forEach((nomeFoglio) => {
-    const anno = Number(String(nomeFoglio).trim());
-    if (!(anno >= 2000 && anno <= 2100)) return;      // solo fogli-anno
-    const m = XLSX.utils.sheet_to_json(wb.Sheets[nomeFoglio], { header: 1, defval: null, blankrows: true, raw: true });
-    if (!m.length) return;
-
-    // 1. riga di intestazione: quella che contiene "Fornitore" e un "Importo"
-    const iHead = m.findIndex(r => (r || []).some(c => /^fornitore$/i.test(NORM(c)))
-                                && (r || []).some(c => /importo/i.test(NORM(c))));
-    if (iHead === -1) { avvisi.push(`Foglio ${anno}: intestazione non riconosciuta, saltato.`); return; }
-    const head = m[iHead] || [];
-    const sopra = m[iHead - 1] || [];
-
-    const iFornitore = head.findIndex(c => /^fornitore$/i.test(NORM(c)));
-    const iTipologia = head.findIndex(c => /tipologia/i.test(NORM(c)));
-    const iData = head.findIndex(c => /^data$/i.test(NORM(c)));
-    const iImporto = head.findIndex(c => /importo/i.test(NORM(c)));
-
-    // 2. Colonne di ripartizione. Il nome può stare nella riga di
-    //    intestazione oppure in quella sopra, quando lì c'è la quota.
-    //    I gruppi e i costi comuni sono due blocchi separati da una colonna
-    //    vuota: il marcatore "COSTI COMUNI" non è allineato alla prima
-    //    colonna del blocco, quindi non si può usare come confine.
-    const IGNORA = /^nota$|^data reg|^n\. ?prot|^tipo doc|^num\. ?doc|^da verificare$|^costi comuni$/i;
-    const colonne = [];
-    let blocco = 0, vuote = 0;
-    for (let c = iImporto + 1; c < Math.max(head.length, sopra.length) + 2; c++) {
-      const hv = head[c] ?? null, sv = sopra[c] ?? null;
-      const numerico = typeof hv === 'number' || (hv !== null && hv !== '' && !isNaN(Number(hv)));
-      const nome = SU(numerico ? sv : hv);
-      if (!nome) {                       // colonna vuota: confine fra blocchi
-        if (++vuote === 1 && colonne.length) blocco = 1;
-        else if (vuote > 1) break;       // oltre il secondo blocco ci sono note
-        continue;
-      }
-      if (IGNORA.test(nome)) continue;
-      vuote = 0;
-      colonne.push({
-        c, nome, blocco,
-        quota: numerico ? Number(hv) : (typeof sv === 'number' ? sv : null),
-        comune: blocco === 1
-      });
-    }
-    if (!colonne.length) avvisi.push(`Foglio ${anno}: nessuna colonna di ripartizione riconosciuta.`);
-
-    // 4. righe di costo, fino alla riga TOTALE
-    let iTotale = m.length;
-    for (let r = iHead + 1; r < m.length; r++) {
-      if (/^totale$/i.test(NORM((m[r] || [])[iFornitore]))) { iTotale = r; break; }
-    }
-
-    let nAnno = 0;
-    for (let r = iHead + 1; r < iTotale; r++) {
-      const riga = m[r] || [];
-      const importo = numeroIt(riga[iImporto]);
-      const fornitore = NORM(riga[iFornitore]);
-      const tipologia = NORM(riga[iTipologia]);
-      if (!importo && !fornitore) continue;
-      if (!importo) { scarti.push({ foglio: anno, riga: r + 1, motivo: 'importo mancante o non numerico', fornitore }); continue; }
-
-      const perGruppo = {}, perPersona = {};
-      let sommaG = 0, sommaC = 0;
-      colonne.forEach(({ c, nome, comune }) => {
-        const v = numeroIt(riga[c]);
-        if (!v) return;
-        if (comune) { perPersona[nome] = (perPersona[nome] || 0) + v; sommaC += v; }
-        else { perGruppo[nome] = (perGruppo[nome] || 0) + v; sommaG += v; }
-      });
-
-      const tipo = RE_UTILI.test(tipologia) ? 'utili'
-                 : RE_PERSONALE.test(tipologia) ? 'personale' : 'gestione';
-      righe.push({
-        anno, fornitore, tipologia,
-        data: dataIso(riga[iData]),
-        importo: Math.round(importo * 100) / 100,
-        diretti: perGruppo, comuni: perPersona,
-        ripartito: Math.round((sommaG + sommaC) * 100) / 100,
-        tipo, origine: 'elenco'
-      });
-      nAnno++;
-    }
-
-    // 4-bis. Voci di costo sotto la riga TOTALE.
-    let sottoTotale = 0;
-    for (let r = iTotale + 1; r < m.length; r++) {
-      const riga = m[r] || [];
-      const fornitore = NORM(riga[iFornitore]);
-      const tipologia = NORM(riga[iTipologia]);
-      const importo = numeroIt(riga[iImporto]);
-      const data = dataIso(riga[iData]);
-      if (!fornitore || !importo || !data) continue;      // le somme non hanno data
-      if (/^totale/i.test(fornitore)) continue;
-      if (/DIPENDENT/i.test(tipologia)) continue;         // già presi dai totali
-
-      const perGruppo = {}, perPersona = {};
-      colonne.forEach(({ c, nome, comune }) => {
-        const v = numeroIt(riga[c]);
-        if (!v) return;
-        if (comune) perPersona[nome] = (perPersona[nome] || 0) + v;
-        else perGruppo[nome] = (perGruppo[nome] || 0) + v;
-      });
-
-      righe.push({
-        anno, fornitore, tipologia, data,
-        importo: Math.round(importo * 100) / 100,
-        diretti: perGruppo, comuni: perPersona,
-        ripartito: Math.round((somma(Object.values(perGruppo), v => v) + somma(Object.values(perPersona), v => v)) * 100) / 100,
-        tipo: RE_UTILI.test(tipologia) ? 'utili' : RE_PERSONALE.test(tipologia) ? 'personale' : 'gestione',
-        origine: 'sottoTotale'
-      });
-      sottoTotale++;
-    }
-    if (sottoTotale) {
-      avvisi.push(`Foglio ${anno}: lette ${sottoTotale} voci collocate sotto la riga TOTALE.`);
-    }
-
-    // 5. Personale: nel 2025 non è in elenco ma nei totali sotto la riga
-    //    TOTALE. Si recuperano quelle righe, che portano già il gruppo.
-    let recuperati = 0;
-    for (let r = iTotale + 1; r < m.length; r++) {
-      const riga = m[r] || [];
-      const et = NORM(riga[iTipologia]) || NORM(riga[iFornitore]) || NORM(riga[1]);
-      if (!RE_TOT_DIP.test(et)) continue;
-      const g = gruppoDaTesto(et.replace(/TOTALE\s+DIPENDENTI/i, ''));
-      // Fra i valori sulla riga si prende il maggiore: è la proiezione
-      // a fine anno, mentre l'altro è il progressivo a data.
-      const cand = riga.map(numeroIt).filter(v => v > 0);
-      const v = cand.length ? Math.max(...cand) : 0;
-      if (!g || !v) continue;
-      righe.push({
-        anno, fornitore: 'Personale', tipologia: `Costo del personale — ${nomeGruppo(g)}`,
-        data: `${anno}-12-31`, importo: Math.round(v * 100) / 100,
-        diretti: { [g]: Math.round(v * 100) / 100 }, comuni: {},
-        ripartito: Math.round(v * 100) / 100, tipo: 'personale', origine: 'totali'
-      });
-      recuperati++;
-    }
-    if (recuperati) {
-      avvisi.push(`Foglio ${anno}: recuperate ${recuperati} voci di costo del personale dai totali sotto la riga TOTALE.`);
-    }
-
-    anni.push({ anno, righe: nAnno, recuperati, colonne: colonne.map(x => x.nome) });
-  });
-
-  if (!righe.length) throw new Error(`${file.name}: nessun foglio-anno con dati di costo riconoscibili.`);
-  return { nomeFile: file.name, anni, righe, avvisi, scarti, caricatoIl: new Date().toISOString() };
-}
-
-/* Riconosce se un file caricato è una suddivisione costi anziché un
-   export di proforma, così l'utente non deve dichiararlo. */
-async function eFileCosti(file) {
-  try {
-    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', raw: true });
-    return wb.SheetNames.some(n => {
-      const a = Number(String(n).trim());
-      if (!(a >= 2000 && a <= 2100)) return false;
-      const m = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: null, blankrows: false, raw: true });
-      return m.slice(0, 8).some(r => (r || []).some(c => /^fornitore$/i.test(NORM(c))));
-    });
-  } catch (e) { return false; }
-}
-
-/* ------------------------------- calcoli ------------------------------ */
-
-/* Somma per gruppo di lavoro. I costi comuni si attribuiscono solo se
-   esiste la corrispondenza persona → gruppo; altrimenti restano fuori e
-   vengono mostrati a parte. */
-function costiPerGruppo(righe) {
-  const acc = {};
-  const tocca = (g) => (acc[g] = acc[g] || { gruppo: g, diretti: 0, comuni: 0, personale: 0, totale: 0 });
-  let comuniNonAttribuiti = 0;
-
-  righe.forEach(r => {
-    if (r.tipo === 'utili') return;                 // non è costo di gestione
-    Object.entries(r.diretti || {}).forEach(([g0, v]) => {
-      const e = tocca(gruppoCanonico(g0));
-      if (r.tipo === 'personale') e.personale += v; else e.diretti += v;
-      e.totale += v;
-    });
-    Object.entries(r.comuni || {}).forEach(([p, v]) => {
-      const quote = QUOTE_PERSONE[SU(p)];
-      if (!quote) { comuniNonAttribuiti += v; return; }
-      Object.entries(quote).forEach(([g, q]) => {
-        const e = tocca(gruppoCanonico(g)); e.comuni += v * q; e.totale += v * q;
-      });
-    });
-  });
-  return { gruppi: Object.values(acc).sort((a, b) => b.totale - a.totale), comuniNonAttribuiti };
-}
-
-function costiPerPersona(righe) {
-  const acc = {};
-  righe.forEach(r => {
-    if (r.tipo === 'utili') return;
-    Object.entries(r.comuni || {}).forEach(([p, v]) => { acc[p] = (acc[p] || 0) + v; });
-  });
-  return Object.entries(acc).map(([persona, importo]) => ({ persona, importo }))
-    .sort((a, b) => b.importo - a.importo);
-}
-
-function costiPerTipologia(righe, limite = 15) {
-  const acc = {};
-  righe.forEach(r => {
-    if (r.tipo === 'utili') return;
-    const k = r.tipologia || '—';
-    if (!acc[k]) acc[k] = { tipologia: k, importo: 0, voci: 0 };
-    acc[k].importo += r.importo; acc[k].voci++;
-  });
-  return Object.values(acc).sort((a, b) => Math.abs(b.importo) - Math.abs(a.importo)).slice(0, limite);
-}
-
-function costiPerFornitore(righe, limite = 20) {
-  const acc = {};
-  righe.forEach(r => {
-    if (r.tipo === 'utili') return;
-    const k = r.fornitore || '—';
-    if (!acc[k]) acc[k] = { fornitore: k, importo: 0, voci: 0 };
-    acc[k].importo += r.importo; acc[k].voci++;
-  });
-  return Object.values(acc).sort((a, b) => Math.abs(b.importo) - Math.abs(a.importo)).slice(0, limite);
-}
-
-function indicatoriCosti(righe) {
-  const gest = righe.filter(r => r.tipo !== 'utili');
-  const tot = somma(gest, r => r.importo);
-  const pers = somma(gest.filter(r => r.tipo === 'personale'), r => r.importo);
-  const utili = somma(righe.filter(r => r.tipo === 'utili'), r => r.importo);
-  const { gruppi, comuniNonAttribuiti } = costiPerGruppo(righe);
-  const diretti = somma(gruppi, g => g.diretti + g.personale);
-  return {
-    totale: tot, personale: pers, utiliSoci: utili, voci: gest.length,
-    diretti, comuni: somma(costiPerPersona(righe), p => p.importo),
-    comuniNonAttribuiti, gruppi,
-    nonRipartito: Math.round((tot - diretti - somma(costiPerPersona(righe), p => p.importo)) * 100) / 100,
-    noteCredito: gest.filter(r => r.importo < 0).length,
-    noteCreditoTot: somma(gest.filter(r => r.importo < 0), r => r.importo)
-  };
-}
-
-/* Incrocio con i ricavi. I gruppi senza corrispondenza con un sezionale
-   (Studio EC, CRI) restano fuori: sommarli falserebbe il margine. */
-function confrontoRicaviCosti(righeProforma, righeCosti, anno) {
-  const rc = costiAnno(anno);
-  const { gruppi, comuniNonAttribuiti } = costiPerGruppo(rc);
-  const perGruppo = Object.fromEntries(gruppi.map(g => [g.gruppo, g]));
-
-  const sez = {};
-  righeProforma.filter(r => r.anno === anno && nelPeriodo(r.data_doc) &&
-      (stato.sezionale === 'TUTTI' || r.sezionale === stato.sezionale))
-    .forEach(r => { sez[r.sezionale] = (sez[r.sezionale] || 0) + r.imponibile; });
-
-  const chiavi = new Set([
-    ...Object.keys(perGruppo).filter(g => sezionaleDiGruppo(g)),
-    ...Object.keys(sez).map(s => Object.keys(GRUPPI_COSTI).find(g => GRUPPI_COSTI[g].sezionale === s)).filter(Boolean)
-  ]);
-
-  const righe = [...chiavi].map(g => {
-    const s = sezionaleDiGruppo(g);
-    const ricavi = s ? (sez[s] || 0) : 0;
-    const c = perGruppo[g] || { diretti: 0, comuni: 0, personale: 0, totale: 0 };
-    const costi = c.totale;
-    return {
-      gruppo: g, nome: nomeGruppo(g), sezionale: s,
-      ricavi, costi, diretti: c.diretti, personale: c.personale, comuni: c.comuni,
-      margine: ricavi - costi,
-      marginePct: ricavi > 0 ? (ricavi - costi) / ricavi * 100 : null,
-      incidenza: ricavi > 0 ? costi / ricavi * 100 : null
-    };
-  }).sort((a, b) => b.ricavi - a.ricavi);
-
-  const fuori = gruppi.filter(g => !sezionaleDiGruppo(g.gruppo));
-  return { righe, fuori, comuniNonAttribuiti,
-    totRicavi: somma(righe, r => r.ricavi), totCosti: somma(righe, r => r.costi) };
-}
-
-/* =====================================================================
    7-bis. LETTURE
    Ogni commento nasce da un confronto fra numeri, non da una soglia
    arbitraria: se il dato non dice niente di rilevante, il riquadro non
@@ -1568,23 +1149,6 @@ const box = (tipo, titolo, testo) => { LETTURE.push({ tipo, titolo, testo }); re
 /* Sintesi del filtro attivo: presente in ogni sezione, così non serve
    tornare in panoramica per sapere cosa si sta guardando. */
 function sintesiCorrente() {
-  // Le sezioni sui costi hanno una sintesi propria: quella del fatturato
-  // lì sarebbe fuori tema.
-  if (stato.tab === 'costi' || stato.tab === 'margini') {
-    const kc = indicatoriCosti(costiVisti());
-    const anni = [...new Set(store.costi.map(r => r.anno))].sort();
-    const ambito = stato.sezionale === 'TUTTI' ? 'tutti i gruppi' : nomeSez(stato.societa, stato.sezionale);
-    return `<div class="overview">
-      <div class="ov-titolo">${esc(SOCIETA[stato.societa] ? SOCIETA[stato.societa].nome : '')} · costi · ${esc(ambito)} ·
-        ${stato.anno === 'TUTTI' ? esc(anni.join('–')) : esc(stato.anno)}${periodoParziale() ? ' · ' + esc(etichettaPeriodo()) : ''}</div>
-      <div class="ov-dati">
-        <span><b>${euro(kc.totale)}</b> ${esc(dicituraCosti())}</span>
-        <span><b>${num(kc.voci)}</b> voci</span>
-        <span><b>${euro(kc.personale)}</b> personale</span>
-        <span><b>${euro(kc.diretti)}</b> diretti ai gruppi</span>
-        <span><b>${euro(kc.comuni)}</b> comuni</span>
-      </div></div>`;
-  }
   const k = indicatori(VISTE);
   const ambito = stato.sezionale === 'TUTTI'
     ? 'tutti i sezionali'
@@ -2527,816 +2091,12 @@ function rendiConfronto() {
     options: { maintainAspectRatio: false, cutout: '58%', plugins: { ...legenda } } });
 }
 
-/* =====================================================================
-   PERIODO E CONFRONTI
-   Il filtro anno da solo non basta: per capire se un esercizio va meglio
-   del precedente bisogna confrontare finestre omogenee, perché l'anno in
-   corso è sempre parziale. Qui si sceglie un intervallo di mesi e lo si
-   applica allo stesso modo a ricavi e costi.
-   ===================================================================== */
-
-const MESI_BREVI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
-
-const periodoParziale = () => stato.daMese !== 1 || stato.aMese !== 12;
-const meseIso = (iso) => (typeof iso === 'string' && iso.length >= 7) ? +iso.slice(5, 7) : null;
-const nelPeriodo = (iso) => {
-  if (!periodoParziale()) return true;
-  const m = meseIso(iso);
-  return m !== null && m >= stato.daMese && m <= stato.aMese;
-};
-const etichettaPeriodo = () => periodoParziale()
-  ? `${MESI_BREVI[stato.daMese - 1]}–${MESI_BREVI[stato.aMese - 1]}`
-  : 'anno intero';
-
-/* Il personale non è registrato mese per mese: nel 2025 è un totale al
-   31 dicembre che copre l'anno intero, nel 2026 un progressivo al 31 agosto
-   che copre da gennaio ad agosto. Ogni blocco copre quindi da gennaio al
-   mese della sua data: si divide per quei mesi e si prende la parte che
-   cade nella finestra. Senza questo, un confronto gen–set metterebbe
-   dodici mensilità da una parte e otto dall'altra. */
-/* Il personale è registrato in blocchi, non mese per mese: il 2025 è un
-   totale al 31 dicembre che copre dodici mensilità, il 2026 un progressivo
-   al 31 agosto che ne copre otto. Ogni blocco copre da gennaio al mese della
-   sua data: si divide per quei mesi e si prende la parte dentro la finestra,
-   così i due anni portano lo stesso numero di mensilità. */
-const RE_PROGRESSIVO = /sino ad? |progressiv/i;
-const bloccoPersonale = (r) => r.tipo === 'personale' &&
-  (r.origine === 'totali' || RE_PROGRESSIVO.test(r.tipologia || ''));
-const mesiCoperti = (r) => meseIso(r.data) || 12;
-
-const scalaVoce = (r, f) => ({ ...r,
-  importo: Math.round(r.importo * f * 100) / 100,
-  diretti: Object.fromEntries(Object.entries(r.diretti || {}).map(([k, v]) => [k, v * f])),
-  comuni:  Object.fromEntries(Object.entries(r.comuni  || {}).map(([k, v]) => [k, v * f])),
-  quotaPeriodo: f });
-
-function costiNelPeriodo(righe) {
-  if (!periodoParziale()) return { righe, ripartiti: 0, senzaData: 0 };
-  let ripartiti = 0, senzaData = 0;
-  const out = [];
-  righe.forEach(r => {
-    if (bloccoPersonale(r)) {
-      const copre = mesiCoperti(r);
-      const dentro = Math.min(copre, stato.aMese) - Math.max(1, stato.daMese) + 1;
-      if (dentro <= 0) return;
-      ripartiti++;
-      out.push(dentro >= copre ? r : scalaVoce(r, dentro / copre));
-      return;
-    }
-    if (meseIso(r.data) === null) { senzaData++; return; }
-    if (nelPeriodo(r.data)) out.push(r);
-  });
-  return { righe: out, ripartiti, senzaData };
-}
-
-const dicituraCosti = () => 'costi di gestione';
-
-/* Vista dei costi per sezionale: di ogni voce si prende solo la quota
-   attribuita al gruppo che corrisponde a quel sezionale. I costi comuni,
-   che non sono attribuiti a nessun gruppo, restano fuori per costruzione. */
-function costiDelSezionale(righe, sez) {
-  if (sez === 'TUTTI') return righe;
-  const gruppi = Object.keys(GRUPPI_COSTI).filter(g => GRUPPI_COSTI[g].sezionale === sez);
-  if (!gruppi.length) return [];
-  const canonici = new Set(gruppi.map(gruppoCanonico));
-  const out = [];
-  righe.forEach(r => {
-    let quota = 0; const diretti = {}, comuni = {};
-    Object.entries(r.diretti || {}).forEach(([g0, v]) => {
-      if (v && canonici.has(gruppoCanonico(g0))) { quota += v; diretti[gruppoCanonico(g0)] = (diretti[gruppoCanonico(g0)] || 0) + v; }
-    });
-    Object.entries(r.comuni || {}).forEach(([persona, v]) => {
-      const q = QUOTE_PERSONE[SU(persona)];
-      if (!q) return;
-      let parte = 0;
-      Object.entries(q).forEach(([g, quotaG]) => { if (canonici.has(gruppoCanonico(g))) parte += v * quotaG; });
-      if (parte !== 0) { comuni[persona] = parte; quota += parte; }
-    });
-    // Le rettifiche e le note di credito hanno importo negativo: scartarle
-    // gonfierebbe il totale del sezionale invece di ridurlo.
-    if (quota !== 0) out.push({ ...r, importo: Math.round(quota * 100) / 100, diretti, comuni, ripartito: Math.round(quota * 100) / 100 });
-  });
-  return out;
-}
-
-/* Sezionali che hanno effettivamente dei costi: gli altri non vanno offerti
-   come filtro, perché darebbero una schermata vuota senza spiegazione. */
-function sezionaliConCosti() {
-  const gruppi = new Set(store.costi.filter(r => societaCosto(r) === stato.societa)
-    .flatMap(r => Object.keys(r.diretti || {})));
-  // Un gruppo può avere costi solo attraverso le quote comuni: è il caso di Defina.
-  Object.values(QUOTE_PERSONE).forEach(q => Object.keys(q).forEach(g => gruppi.add(g)));
-  return [...new Set([...gruppi]
-    .map(gruppoCanonico)
-    .filter(g => (GRUPPI_COSTI[g] || {}).societa === stato.societa)
-    .map(sezionaleDiGruppo).filter(Boolean))].sort();
-}
-
-/* Un anno di costi, ridotto alla finestra e al sezionale correnti. */
-function costiAnno(anno) {
-  const base = costiDelSezionale(
-    store.costi.filter(r => societaCosto(r) === stato.societa && r.anno === anno),
-    stato.sezionale);
-  return costiNelPeriodo(base).righe;
-}
-
-/* Confronto fra anni sui costi: stessa finestra di mesi per tutti. */
-function confrontoCostiAnni() {
-  const anni = [...new Set(store.costi.filter(r => societaCosto(r) === stato.societa).map(r => r.anno))].sort();
-  return anni.map(anno => {
-    const righe = costiAnno(anno);
-    const k = indicatoriCosti(righe);
-    return {
-      anno, totale: k.totale, personale: k.personale, diretti: k.diretti,
-      comuni: k.comuni, voci: k.voci,
-      gruppi: Object.fromEntries(k.gruppi.map(g => [g.gruppo, g.totale]))
-    };
-  });
-}
-
-/* Confronto fra anni su ricavi, costi e margine. I ricavi seguono la stessa
-   finestra dei costi, altrimenti si confronterebbero periodi diversi. */
-function confrontoMargineAnni() {
-  const anniCosti = [...new Set(store.costi.filter(r => societaCosto(r) === stato.societa).map(r => r.anno))];
-  const anniRic = [...new Set(TUTTE.map(r => r.anno))];
-  const anni = [...new Set([...anniCosti, ...anniRic])].filter(a => anniCosti.includes(a) && anniRic.includes(a)).sort();
-  return anni.map(anno => {
-    const rc = costiAnno(anno);
-    const costi = somma(rc.filter(r => r.tipo !== 'utili'), r => r.importo);
-    const ricavi = somma(TUTTE.filter(r =>
-      r.anno === anno &&
-      (stato.sezionale === 'TUTTI' || r.sezionale === stato.sezionale) &&
-      nelPeriodo(r.data_doc)), r => r.imponibile);
-    return {
-      anno, ricavi, costi, margine: ricavi - costi,
-      marginePct: ricavi > 0 ? (ricavi - costi) / ricavi * 100 : null,
-      incidenza: ricavi > 0 ? costi / ricavi * 100 : null
-    };
-  });
-}
-
-/* Il segno della variazione: su un costo che scende il verde è corretto,
-   su un ricavo che scende no. Da qui il parametro. */
-const segno = (v, invertito) => {
-  if (v === null || !isFinite(v)) return '—';
-  const buono = invertito ? v < 0 : v > 0;
-  return `<span class="${buono ? 'su' : 'giu'}">${v > 0 ? '+' : ''}${pct(v)}</span>`;
-};
-
-/* Avviso sulle voci lasciate fuori dalla finestra: senza, i totali di un
-   confronto parziale sembrerebbero sbagliati. */
-function notaPeriodo(righeAnno) {
-  if (!periodoParziale()) return;
-  const suoi = store.costi.filter(r => societaCosto(r) === stato.societa && r.tipo !== 'utili' &&
-    (stato.anno === 'TUTTI' || r.anno === +stato.anno));
-  const blocchi = suoi.filter(bloccoPersonale);
-  const senza = suoi.filter(r => !bloccoPersonale(r) && meseIso(r.data) === null);
-  if (!blocchi.length && !senza.length) return;
-  const mesiScelti = stato.aMese - stato.daMese + 1;
-  let t = '';
-  if (blocchi.length) {
-    const perAnno = {};
-    blocchi.forEach(r => {
-      const a = r.anno, m = mesiCoperti(r);
-      perAnno[a] = perAnno[a] || { mesi: m, tot: 0 };
-      perAnno[a].tot += r.importo;
-    });
-    const dett = Object.entries(perAnno).map(([a, v]) => {
-      const dentro = Math.max(0, Math.min(v.mesi, stato.aMese) - Math.max(1, stato.daMese) + 1);
-      return `<strong>${esc(a)}</strong>: ${euro(v.tot)} su ${num(v.mesi)} mensilità, ne entrano ${num(dentro)} per ${euro(v.tot * dentro / v.mesi)}`;
-    });
-    t += `Il personale non è registrato mese per mese, ma in blocchi che coprono da gennaio alla loro data.
-      Ogni blocco si divide per i mesi che copre e se ne prende la parte dentro <strong>${etichettaPeriodo()}</strong> —
-      ${dett.join('; ')}. Così i due anni portano lo stesso numero di mensilità.
-      Il limite è che la ripartizione è uniforme: se in un anno la tredicesima o un premio pesano su un mese
-      solo, la media li spalma su tutti. `;
-  }
-  if (senza.length) {
-    t += `${num(senza.length)} voci per ${euro(somma(senza, r => r.importo))} non hanno una data utilizzabile e restano fuori. `;
-  }
-  if (!t) return;
-  box('insight', 'Come il personale entra in un periodo parziale.', t);
-}
-
-function costiVisti() {
-  const base = costiDelSezionale(
-    store.costi.filter(r => societaCosto(r) === stato.societa &&
-                            (stato.anno === 'TUTTI' || r.anno === +stato.anno)),
-    stato.sezionale);
-  return costiNelPeriodo(base).righe;
-}
-
-function rendiCosti() {
-  const tutti = store.costi.filter(r => societaCosto(r) === stato.societa);
-  if (!tutti.length) {
-    const altrove = store.costi.length > 0;
-    pubblica('costi', `<div class="chart-card"><div class="vuoto">
-      <h3>Nessun costo per ${esc(SOCIETA[stato.societa] ? SOCIETA[stato.societa].nome : 'questa ragione sociale')}</h3>
-      <p>${altrove
-        ? `Il file di suddivisione costi caricato è di ${esc(SOCIETA.ST ? SOCIETA.ST.nome : 'ST Consulting')}. Le due ragioni sociali hanno archivi separati: i costi dell'una non valgono per l'altra.`
-        : 'Carica il file di suddivisione costi dalla sezione Archivio: viene riconosciuto da solo.'}</p></div></div>`);
-    return;
-  }
-
-  const righe = costiVisti();
-  const k = indicatoriCosti(righe);
-  const anni = [...new Set(tutti.map(r => r.anno))].sort();
-  const perTip = costiPerTipologia(righe);
-  const perForn = costiPerFornitore(righe);
-  const persone = costiPerPersona(righe);
-
-  let h = '<div class="fascia-grid">';
-  h += fascia('blu', 'euro', dicituraCosti().charAt(0).toUpperCase() + dicituraCosti().slice(1), euro(k.totale),
-              `${num(k.voci)} voci · ${stato.anno === 'TUTTI' ? anni.join(' · ') : stato.anno}`);
-  h += fascia('blu', 'clienti', 'Costo del personale', euro(k.personale),
-              k.totale ? `${pct(k.personale / k.totale * 100)} del totale` : '');
-  h += fascia('blu', 'carta', 'Costi comuni', euro(k.comuni),
-              'ripartiti per quote fra i soci');
-  h += fascia('blu', 'torta', 'Costi diretti ai gruppi', euro(k.diretti),
-              k.totale ? `${pct(k.diretti / k.totale * 100)} del totale` : '');
-  h += '</div>' + SEGNAPOSTO;
-
-  h += `<div class="chart-row">
-    <div class="chart-card"><h3>Costi per gruppo di lavoro</h3><div class="chart-wrap-lg"><canvas id="kGruppi"></canvas></div>
-      <div class="kpi-sub" style="margin-top:8px">Solo i costi attribuiti direttamente al gruppo, personale compreso.</div></div>
-    <div class="chart-card"><h3>Composizione dei costi</h3><div class="chart-wrap-lg"><canvas id="kComp"></canvas></div></div>
-  </div>`;
-
-  h += `<div class="chart-row">
-    <div class="chart-card"><h3>Prime voci di costo</h3><div class="chart-wrap-lg"><canvas id="kTipologie"></canvas></div></div>
-    <div class="chart-card"><h3>Costi comuni per quota</h3><div class="chart-wrap"><canvas id="kPersone"></canvas></div>
-      <div class="kpi-sub" style="margin-top:8px">${personeMappate()
-        ? 'Le quote vengono poi attribuite ai gruppi secondo la corrispondenza impostata.'
-        : 'Le quote non sono ancora collegate ai gruppi di lavoro: restano un blocco a sé.'}</div></div>
-  </div>`;
-
-  // ------------------------------- letture -------------------------------
-  if (k.utiliSoci > 0) {
-    box('insight', 'Gli acconti sugli utili restano fuori dai costi.',
-      `Nell'archivio ci sono ${euro(k.utiliSoci)} di acconti sugli utili ai soci. Sono distribuzione di
-       risultato, non costi di gestione, quindi non entrano né nei totali qui sopra né nei confronti fra anni.
-       Restano visibili in fondo alla sezione, così il quadro resta completo.`);
-  }
-
-  const gruppiOrd = k.gruppi.filter(g => g.totale !== 0 && !(GRUPPI_COSTI[g.gruppo] || {}).nonGruppo);
-  if (gruppiOrd.length) {
-    const primo = gruppiOrd[0];
-    const fuori = gruppiOrd.filter(g => !sezionaleDiGruppo(g.gruppo));
-    box('insight', 'Dove si concentrano i costi diretti.',
-      `<strong>${esc(nomeGruppo(primo.gruppo))}</strong> assorbe ${euro(primo.totale)}, il
-       ${pct(primo.totale / somma(gruppiOrd, g => g.totale) * 100)} dei costi attribuiti ai gruppi.
-       ${primo.personale > 0 ? `Di questi, ${euro(primo.personale)} sono costo del personale.` : ''}
-       ${fuori.length ? `Restano fuori dal confronto con i ricavi ${fuori.map(g => `<strong>${esc(nomeGruppo(g.gruppo))}</strong> (${euro(g.totale)})`).join(' e ')},
-         perché non corrispondono a un sezionale di fatturato.` : ''}`);
-  }
-
-  if (k.personale > 0) {
-    const recuperati = righe.filter(r => r.origine === 'totali').length;
-    box(recuperati ? 'warn-box' : 'insight', 'Come è contato il personale.',
-      `Il costo del personale vale ${euro(k.personale)}, il ${pct(k.personale / (k.totale || 1) * 100)} dei costi di gestione.
-       ${recuperati
-         ? `Per ${num(recuperati)} voci il dato non era nell'elenco ma nei totali riportati sotto la riga TOTALE del foglio,
-            e da lì è stato recuperato. È il caso del 2025: senza questo recupero il confronto fra anni mostrerebbe
-            un aumento inesistente, perché nel 2026 i dipendenti sono in elenco e nel 2025 no.`
-         : "Le voci provengono tutte dall’elenco costi."}`);
-  }
-
-  if (k.comuniNonAttribuiti > 0) {
-    const senza = persone.filter(p => !QUOTE_PERSONE[SU(p.persona)]).map(p => esc(p.persona));
-    const con = persone.filter(p => QUOTE_PERSONE[SU(p.persona)]).map(p => esc(p.persona));
-    box('warn-box', `${euro(k.comuniNonAttribuiti)} di costi comuni non sono ancora collegati ai gruppi.`,
-      `Le quote di ${senza.join(', ')} sono ripartite per persona e non per gruppo di lavoro, quindi restano
-       un blocco a sé e non entrano nel margine per gruppo.
-       ${con.length ? `La quota di ${con.join(', ')} è invece attribuita e concorre al margine.` : ''}
-       Attribuire le altre con un criterio inventato darebbe margini sbagliati proprio dove servono precisi.`);
-  }
-
-  if (Math.abs(k.nonRipartito) > 1) {
-    box('warn-box', 'Voci senza ripartizione.',
-      `${euro(k.nonRipartito)} risultano in elenco ma senza attribuzione né a un gruppo né alle quote comuni.
-       Compaiono nei costi totali ma non nei margini per gruppo: vale la pena verificarle nel file di origine.`);
-  }
-
-  if (k.noteCredito > 0) {
-    box('insight', `${num(k.noteCredito)} note di credito per ${euro(Math.abs(k.noteCreditoTot))}.`,
-      `Sono voci a importo negativo e riducono il costo, come devono: rientrano nei totali, nei gruppi e nei
-       sezionali con il loro segno. Le trovi in fondo alle classifiche per fornitore e per tipologia, ordinate
-       per peso e non per valore, così una nota grossa non finisce in coda.`);
-  }
-
-  // -------------------------------- tabelle ------------------------------
-  const eGruppo = (g) => !(GRUPPI_COSTI[g] || {}).nonGruppo;
-  const diLavoro = k.gruppi.filter(g => g.totale !== 0 && eGruppo(g.gruppo));
-  const fuoriGruppo = k.gruppi.filter(g => g.totale !== 0 && !eGruppo(g.gruppo));
-
-  h += `<div class="chart-card"><h3>Dettaglio per gruppo di lavoro</h3>` +
-    tabella([
-      { t: 'Gruppo', v: g => esc(nomeGruppo(g.gruppo)) },
-      { t: 'Costi diretti', num: true, v: g => euro(g.diretti) },
-      { t: 'Personale', num: true, v: g => euro(g.personale) },
-      { t: 'Quota comuni', num: true, v: g => g.comuni > 0 ? euro(g.comuni) : '—' },
-      { t: 'Totale', num: true, v: g => `<strong>${euro(g.totale)}</strong>` },
-      { t: 'Peso', num: true, v: g => {
-          const t = somma(diLavoro, x => x.totale) || 1;
-          return `${pct(g.totale / t * 100)} ${barra(g.totale / t * 100, '#b04434')}`; } },
-      { t: 'Fatturato', v: g => sezionaleDiGruppo(g.gruppo)
-          ? `<span class="tag tag-blue">sezionale ${esc(sezionaleDiGruppo(g.gruppo))}</span>`
-          : '<span class="tag tag-grey">nessun sezionale</span>' }
-    ], diLavoro) + '</div>';
-
-  if (fuoriGruppo.length) {
-    h += `<div class="chart-card"><h3>Costi anticipati per altre ragioni sociali</h3>` +
-      tabella([
-        { t: 'Voce', v: g => esc(nomeGruppo(g.gruppo)) },
-        { t: 'Costi diretti', num: true, v: g => euro(g.diretti) },
-        { t: 'Personale', num: true, v: g => euro(g.personale) },
-        { t: 'Totale', num: true, v: g => `<strong>${euro(g.totale)}</strong>` }
-      ], fuoriGruppo, { nota: 'Non sono gruppi di lavoro di ST Consulting: sono costi che ST anticipa e recupera con fattura di riaddebito. Restano fuori dai margini per gruppo e dal bilancino dei soci.' }) + '</div>';
-  }
-
-  h += `<div class="chart-row">
-    <div class="chart-card"><h3>Voci di costo</h3>` +
-    tabella([
-      { t: 'Tipologia', v: r => esc(r.tipologia) },
-      { t: 'Voci', num: true, v: r => num(r.voci) },
-      { t: 'Importo', num: true, v: r => euro(r.importo) }
-    ], perTip) + `</div>
-    <div class="chart-card"><h3>Principali fornitori</h3>` +
-    tabella([
-      { t: 'Fornitore', v: r => `<div class="cliente-cell" title="${esc(r.fornitore)}">${esc(r.fornitore)}</div>` },
-      { t: 'Voci', num: true, v: r => num(r.voci) },
-      { t: 'Importo', num: true, v: r => euro(r.importo) }
-    ], perForn) + '</div></div>';
-
-  if (k.utiliSoci > 0) {
-    const ut = righe.filter(r => r.tipo === 'utili');
-    h += `<div class="chart-card"><h3>Acconti sugli utili ai soci — fuori dai costi di gestione</h3>` +
-      tabella([
-        { t: 'Socio', v: r => esc(r.fornitore) },
-        { t: 'Voce', v: r => esc(r.tipologia) },
-        { t: 'Anno', num: true, v: r => r.anno },
-        { t: 'Importo', num: true, v: r => euro(r.importo) }
-      ], ut, { nota: `Totale ${euro(k.utiliSoci)}. Distribuzione di risultato, esclusa da totali, grafici e confronti.` }) + '</div>';
-  }
-
-
-  notaPeriodo();
-
-  /* ------------------------------- confronto fra anni ------------------ */
-  const ca = confrontoCostiAnni().filter(x => x.voci > 0);
-  if (ca.length > 1) {
-    const gruppiTutti = [...new Set(ca.flatMap(x => Object.keys(x.gruppi)))]
-      .sort((g1, g2) => somma(ca, x => x.gruppi[g2] || 0) - somma(ca, x => x.gruppi[g1] || 0));
-    const ult = ca[ca.length - 1], pen = ca[ca.length - 2];
-
-    h += `<div class="chart-card"><h3>Confronto fra anni · ${esc(etichettaPeriodo())}</h3>
-      <div class="chart-wrap-lg"><canvas id="kConfronto"></canvas></div>` +
-      tabella([
-        { t: 'Voce', v: r => esc(r.nome) },
-        ...ca.map(x => ({ t: String(x.anno), num: true, v: r => r.per[x.anno] ? euro(r.per[x.anno]) : '—' })),
-        { t: `Var. ${pen.anno}→${ult.anno}`, num: true,
-          v: r => segno(variazione(r.per[ult.anno] || 0, r.per[pen.anno] || 0), true) }
-      ], [
-        { nome: dicituraCosti().charAt(0).toUpperCase() + dicituraCosti().slice(1),
-          per: Object.fromEntries(ca.map(x => [x.anno, x.totale])) },
-        { nome: 'di cui personale', per: Object.fromEntries(ca.map(x => [x.anno, x.personale])) },
-        { nome: 'di cui comuni', per: Object.fromEntries(ca.map(x => [x.anno, x.comuni])) },
-        ...gruppiTutti.map(g => ({
-          nome: nomeGruppo(g), per: Object.fromEntries(ca.map(x => [x.anno, x.gruppi[g] || 0])) }))
-      ], { nota: periodoParziale()
-            ? `Ogni anno è calcolato sugli stessi mesi (${etichettaPeriodo()}), personale compreso e ripartito sui mesi che copre.`
-            : 'Anni interi. Restringi il periodo per confrontare l\'anno in corso con lo stesso tratto di quello prima.' }) + '</div>';
-
-    const vr = variazione(ult.totale, pen.totale);
-    if (vr !== null) {
-      box('evolution-box',
-        vr > 0 ? `I ${dicituraCosti()} crescono del ${pct(vr)} rispetto al ${pen.anno}.`
-               : `I ${dicituraCosti()} calano del ${pct(Math.abs(vr))} rispetto al ${pen.anno}.`,
-        `Sulla finestra ${etichettaPeriodo()} il ${ult.anno} vale ${euro(ult.totale)} contro ${euro(pen.totale)} del ${pen.anno}.
-         ${periodoParziale()
-           ? 'I due anni coprono gli stessi mesi, con il personale ripartito sui mesi che copre: la differenza non dipende né dal calendario né da come il foglio registra gli stipendi.'
-           : `Attenzione però: il ${ult.anno} potrebbe non essere ancora chiuso, e un anno intero contro uno parziale non è un paragone. Restringi il periodo per essere sicuro.`}`);
-    }
-  }
-
-  pubblica('costi', h);
-
-  if (ca.length > 1) {
-    const gr = [...new Set(ca.flatMap(x => Object.keys(x.gruppi)))]
-      .sort((g1, g2) => somma(ca, x => x.gruppi[g2] || 0) - somma(ca, x => x.gruppi[g1] || 0));
-    const toni = ['#b3cadf', '#78a8c8', '#3f7fa8', '#0b4d7c'];
-    disegna('kConfronto', { type: 'bar',
-      data: { labels: gr.map(nomeGruppo),
-        datasets: ca.map((x, i) => ({ label: String(x.anno),
-          data: gr.map(g => x.gruppi[g] || 0),
-          backgroundColor: toni[(toni.length - ca.length + i + toni.length) % toni.length], borderRadius: 4 })) },
-      options: { maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
-                  x: { grid: { display: false } } },
-        plugins: { ...legenda, tooltip: { callbacks: { label: t => `${t.dataset.label}: ${euro(t.parsed.y)}` } } } } });
-  }
-
-  const colGruppi = ['#0b4d7c', '#3f7fa8', '#b04434', '#a8741a', '#5d6f84', '#0b4d7c'];
-  disegna('kGruppi', { type: 'bar',
-    data: { labels: diLavoro.map(g => nomeGruppo(g.gruppo)),
-      datasets: [
-        { label: 'Costi diretti', data: diLavoro.map(g => g.diretti), backgroundColor: '#0b4d7c', borderRadius: 4 },
-        { label: 'Personale', data: diLavoro.map(g => g.personale), backgroundColor: '#5d6f84', borderRadius: 4 },
-        { label: 'Quota comuni', data: diLavoro.map(g => g.comuni), backgroundColor: '#3f7fa8', borderRadius: 4 }] },
-    options: { indexAxis: 'y', maintainAspectRatio: false,
-      scales: { x: { stacked: true, beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
-                y: { stacked: true, grid: { display: false } } },
-      plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${euro(c.parsed.x)}` } } } } });
-
-  disegna('kComp', { type: 'doughnut',
-    data: { labels: ['Diretti ai gruppi', 'Personale', 'Comuni per quota', 'Non ripartiti'],
-      datasets: [{ data: [k.diretti - k.personale, k.personale, k.comuni, k.nonRipartito],
-        backgroundColor: ['#0b4d7c', '#5d6f84', '#3f7fa8', '#cbd3dd'], borderWidth: 0 }] },
-    options: { maintainAspectRatio: false, cutout: '58%',
-      plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.label}: ${euro(c.parsed)}` } } } } });
-
-  disegna('kTipologie', { type: 'bar',
-    data: { labels: perTip.map(t => t.tipologia.length > 30 ? t.tipologia.slice(0, 30) + '…' : t.tipologia),
-      datasets: [{ data: perTip.map(t => t.importo), backgroundColor: PALETTE, borderRadius: 4 }] },
-    options: { indexAxis: 'y', maintainAspectRatio: false,
-      scales: { x: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
-                y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => euro(c.parsed.x) } } } } });
-
-  disegna('kPersone', { type: 'doughnut',
-    data: { labels: persone.map(p => p.persona),
-      datasets: [{ data: persone.map(p => p.importo), backgroundColor: colGruppi, borderWidth: 0 }] },
-    options: { maintainAspectRatio: false, cutout: '58%',
-      plugins: { ...legenda, tooltip: { callbacks: { label: c => `${c.label}: ${euro(c.parsed)}` } } } } });
-}
-
-/* ------------------------------ redditività --------------------------- */
-
-function rendiMargini() {
-  const suoi = store.costi.filter(r => societaCosto(r) === stato.societa);
-  if (!suoi.length) {
-    pubblica('margini', `<div class="chart-card"><div class="vuoto">
-      <h3>Servono i costi di ${esc(SOCIETA[stato.societa] ? SOCIETA[stato.societa].nome : 'questa ragione sociale')}</h3>
-      <p>${store.costi.length
-        ? `Il file caricato è di ${esc(SOCIETA.ST ? SOCIETA.ST.nome : 'ST Consulting')}: incrociare i suoi costi con questo fatturato darebbe un margine privo di significato.`
-        : 'Carica il file di suddivisione costi per incrociare ricavi e costi.'}</p></div></div>`);
-    return;
-  }
-  const anniCosti = [...new Set(suoi.map(r => r.anno))].sort();
-  const anniRic = [...new Set(TUTTE.map(r => r.anno))];
-  const comuni = anniCosti.filter(a => anniRic.includes(a));
-  if (!comuni.length) {
-    pubblica('margini', `<div class="chart-card"><div class="vuoto"><h3>Anni non sovrapponibili</h3>
-      <p>I costi coprono ${anniCosti.join(', ')}, il fatturato ${anniRic.sort().join(', ')}.
-      Serve almeno un anno presente in entrambi.</p></div></div>`);
-    return;
-  }
-  const anno = stato.anno !== 'TUTTI' && comuni.includes(+stato.anno) ? +stato.anno : comuni[comuni.length - 1];
-  const c = confrontoRicaviCosti(TUTTE, store.costi, anno);
-  const margine = c.totRicavi - c.totCosti;
-
-  let h = '<div class="fascia-grid">';
-  h += fascia('blu', 'euro', `Ricavi ${anno}${periodoParziale() ? ' · ' + etichettaPeriodo() : ''}`,
-              euro(c.totRicavi), 'gruppi con costi confrontabili');
-  h += fascia('blu', 'carta', `Costi ${anno}${periodoParziale() ? ' · ' + etichettaPeriodo() : ''}`,
-              euro(c.totCosti), 'diretti, personale e quote attribuite');
-  h += fascia(margine >= 0 ? 'verde' : 'ambra', 'crescita', 'Margine', euro(margine),
-              c.totRicavi ? `${pct(margine / c.totRicavi * 100)} sui ricavi` : '');
-  h += fascia('ambra', 'torta', 'Incidenza costi', c.totRicavi ? pct(c.totCosti / c.totRicavi * 100) : '—',
-              'quanto del fatturato assorbono');
-  h += '</div>' + SEGNAPOSTO;
-
-  h += `<div class="chart-row">
-    <div class="chart-card"><h3>Ricavi e costi per gruppo</h3><div class="chart-wrap-lg"><canvas id="mBarre"></canvas></div></div>
-    <div class="chart-card"><h3>Margine per gruppo</h3><div class="chart-wrap-lg"><canvas id="mMargine"></canvas></div>
-      <div class="kpi-sub" style="margin-top:8px">In verde il margine positivo, in rosso dove i costi superano i ricavi.</div></div>
-  </div>`;
-
-  // ------------------------------- letture -------------------------------
-  const conRicavi = c.righe.filter(r => r.ricavi > 0);
-  const migliore = [...conRicavi].sort((a, b) => (b.marginePct ?? -999) - (a.marginePct ?? -999))[0];
-  const peggiore = [...conRicavi].sort((a, b) => (a.marginePct ?? 999) - (b.marginePct ?? 999))[0];
-  if (migliore && peggiore && migliore.gruppo !== peggiore.gruppo) {
-    box('insight', 'Quale gruppo rende di più.',
-      `<strong>${esc(migliore.nome)}</strong> ha il margine più alto: ${euro(migliore.margine)} su
-       ${euro(migliore.ricavi)} di ricavi, cioè ${pct(migliore.marginePct)}.
-       All'estremo opposto <strong>${esc(peggiore.nome)}</strong> si ferma a ${pct(peggiore.marginePct)}
-       (${euro(peggiore.margine)} su ${euro(peggiore.ricavi)}).
-       ${peggiore.marginePct < 0
-         ? 'Con margine negativo i costi superano il fatturato: prima di leggerlo come una perdita vale la pena verificare che tutti i ricavi del gruppo siano stati fatturati nel periodo.'
-         : 'La differenza fra i due dice dove conviene guardare per primo, ma va letta insieme al peso di ciascun gruppo sul totale.'}`);
-  }
-
-  const senzaCosti = c.righe.filter(r => r.ricavi > 0 && r.costi === 0);
-  if (senzaCosti.length) {
-    box('warn-box', 'Gruppi con ricavi ma senza costi.',
-      `${senzaCosti.map(r => `<strong>${esc(r.nome)}</strong> (${euro(r.ricavi)})`).join(', ')}
-       ${senzaCosti.length === 1 ? 'ha' : 'hanno'} fatturato ma nessun costo attribuito nel file.
-       Il margine risulta quindi pari al fatturato, che non è un dato reale: o i costi finiscono in un altro
-       gruppo, o quella colonna manca nel foglio dell'anno.`);
-  }
-
-  if (c.fuori.length) {
-    box('insight', 'Cosa resta fuori dal confronto.',
-      `${c.fuori.map(g => `<strong>${esc(nomeGruppo(g.gruppo))}</strong> (${euro(g.totale)})`).join(' e ')}
-       ${c.fuori.length === 1 ? 'ha costi' : 'hanno costi'} ma nessun sezionale di fatturato corrispondente,
-       quindi non ${c.fuori.length === 1 ? 'entra' : 'entrano'} nel margine.
-       Studio EC in particolare non è un gruppo di lavoro di ST: è una ragione sociale separata, e quei costi
-       ST li anticipa per recuperarli con una fattura di riaddebito.`);
-  }
-
-  if (c.comuniNonAttribuiti > 0) {
-    box('warn-box', 'Il margine non comprende i costi comuni.',
-      `${euro(c.comuniNonAttribuiti)} di costi comuni non sono attribuiti ad alcun gruppo, perché sono ripartiti
-       per persona e manca la corrispondenza con i gruppi di lavoro. I margini qui sopra sono quindi più
-       generosi del reale di quella cifra: sul totale valgono
-       ${pct(c.comuniNonAttribuiti / (c.totRicavi || 1) * 100)} dei ricavi.`);
-  }
-
-  notaPeriodo();
-
-  h += `<div class="chart-card"><h3>Dettaglio per gruppo di lavoro</h3>` +
-    tabella([
-      { t: 'Gruppo', v: r => esc(r.nome) },
-      { t: 'Ricavi', num: true, v: r => euro(r.ricavi) },
-      { t: 'Costi', num: true, v: r => euro(r.costi) },
-      { t: 'di cui personale', num: true, v: r => r.personale ? euro(r.personale) : '—' },
-      { t: 'Margine', num: true, v: r => `<span class="${r.margine >= 0 ? 'su' : 'giu'}">${euro(r.margine)}</span>` },
-      { t: 'Margine %', num: true, v: r => r.marginePct === null ? '—'
-          : `<span class="tag ${r.marginePct >= 30 ? 'tag-green' : r.marginePct >= 0 ? 'tag-orange' : 'tag-red'}">${pct(r.marginePct)}</span>` },
-      { t: 'Incidenza costi', num: true, v: r => r.incidenza === null ? '—' : pct(r.incidenza) }
-    ], c.righe, { nota: `Anno ${anno}. I gruppi senza sezionale di fatturato non compaiono in questa tabella.` }) + '</div>';
-
-
-  /* ------------------------------- confronto fra anni ------------------ */
-  const ma = confrontoMargineAnni().filter(x => x.ricavi > 0 || x.costi > 0);
-  if (ma.length > 1) {
-    const ult = ma[ma.length - 1], pen = ma[ma.length - 2];
-    h += `<div class="chart-card"><h3>Ricavi, costi e margine per anno · ${esc(etichettaPeriodo())}</h3>
-      <div class="chart-wrap-lg"><canvas id="mConfronto"></canvas></div>` +
-      tabella([
-        { t: 'Anno', v: r => r.anno },
-        { t: 'Ricavi', num: true, v: r => euro(r.ricavi) },
-        { t: 'Costi', num: true, v: r => euro(r.costi) },
-        { t: 'Margine', num: true, v: r => `<span class="${r.margine >= 0 ? 'su' : 'giu'}">${euro(r.margine)}</span>` },
-        { t: 'Margine %', num: true, v: r => r.marginePct === null ? '—' : pct(r.marginePct) },
-        { t: 'Incidenza costi', num: true, v: r => r.incidenza === null ? '—' : pct(r.incidenza) }
-      ], ma, { nota: periodoParziale()
-          ? `Tutti gli anni sulla finestra ${etichettaPeriodo()}: ricavi e costi seguono gli stessi mesi, con il personale ripartito sui mesi che copre.`
-          : 'Anni interi. Restringi il periodo per confrontare l\'anno in corso con lo stesso tratto di quello prima.' }) + '</div>';
-
-    const vm = variazione(ult.marginePct, pen.marginePct);
-    box('evolution-box', 'Come si muove la marginalità.',
-      `Sulla finestra ${etichettaPeriodo()} il margine passa da ${euro(pen.margine)} del ${pen.anno}
-       a ${euro(ult.margine)} del ${ult.anno}${pen.marginePct !== null && ult.marginePct !== null
-         ? `, cioè dal ${pct(pen.marginePct)} al ${pct(ult.marginePct)} sui ricavi` : ''}.
-       ${vm !== null && vm < 0
-         ? 'La marginalità si assottiglia: i costi crescono più dei ricavi.'
-         : 'La marginalità tiene o migliora.'}
-       ${periodoParziale() ? '' : `Il ${ult.anno} potrebbe essere ancora parziale: per un paragone pulito restringi la finestra.`}`);
-  }
-
-  pubblica('margini', h);
-
-  if (ma.length > 1) {
-    disegna('mConfronto', { type: 'bar',
-      data: { labels: ma.map(x => String(x.anno)), datasets: [
-        { label: 'Ricavi', data: ma.map(x => x.ricavi), backgroundColor: '#0b4d7c', borderRadius: 4 },
-        { label: 'Costi',  data: ma.map(x => x.costi),  backgroundColor: '#b04434', borderRadius: 4 },
-        { label: 'Margine', data: ma.map(x => x.margine), backgroundColor: '#14795e', borderRadius: 4 }] },
-      options: { maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
-                  x: { grid: { display: false } } },
-        plugins: { ...legenda, tooltip: { callbacks: { label: t => `${t.dataset.label}: ${euro(t.parsed.y)}` } } } } });
-  }
-
-  disegna('mBarre', { type: 'bar',
-    data: { labels: c.righe.map(r => r.nome), datasets: [
-      { label: 'Ricavi', data: c.righe.map(r => r.ricavi), backgroundColor: '#0b4d7c', borderRadius: 4 },
-      { label: 'Costi', data: c.righe.map(r => r.costi), backgroundColor: '#b04434', borderRadius: 4 }] },
-    options: { maintainAspectRatio: false,
-      scales: { y: { beginAtZero: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
-                x: { grid: { display: false } } },
-      plugins: { ...legenda, tooltip: { callbacks: { label: x => `${x.dataset.label}: ${euro(x.parsed.y)}` } } } } });
-
-  disegna('mMargine', { type: 'bar',
-    data: { labels: c.righe.map(r => r.nome),
-      datasets: [{ data: c.righe.map(r => r.margine),
-        backgroundColor: c.righe.map(r => r.margine >= 0 ? '#0b4d7c' : '#b04434'), borderRadius: 4 }] },
-    options: { indexAxis: 'y', maintainAspectRatio: false,
-      scales: { x: { ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
-                y: { grid: { display: false } } },
-      plugins: { legend: { display: false },
-        tooltip: { callbacks: { label: x => `${euro(x.parsed.x)} · ${pct(c.righe[x.dataIndex].marginePct)}` } } } } });
-}
-
 /* Esiti e errori restano nella pagina invece di bloccarla con una finestra. */
 function esitoArchivio(tipo, testo) {
   const c = $('#esito2');
   if (!c) return;
   c.innerHTML = `<div class="lettura ${tipo}"><p class="lettura-corpo">${testo}</p></div>`;
   c.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-}
-
-/* =====================================================================
-   BILANCINO SOCI
-   Quanto spetta a ciascun socio sul risultato dei gruppi di cui è titolare,
-   al netto della sua quota di costi comuni e di quanto già distribuito.
-   ===================================================================== */
-
-/* Quote di titolarità dei gruppi di lavoro. Studio EC non compare perché
-   non è un gruppo di lavoro di ST: è una ragione sociale separata. */
-const SOCI = {
-  TECNACISSE:   { LUCA: 0.20, DAVIDE: 0.80 },
-  STUDIRIUNITI: { CRISTINA: 0.28, FEDERICO: 0.56, DAVIDE: 0.16 },
-  PAGHE:        { FEDERICO: 1 },
-  DEFINA:       { CRISTINA: 1 }
-};
-
-const NOME_SOCIO = { LUCA: 'Luca', DAVIDE: 'Davide', FEDERICO: 'Federico', CRISTINA: 'Cristina' };
-
-/* Nel blocco dei costi comuni le persone sono siglate. */
-const SIGLA_SOCIO = { LUK: 'LUCA', DAVE: 'DAVIDE', FEDE: 'FEDERICO', CRI: 'CRISTINA' };
-
-/* Le distribuzioni già avvenute si riconoscono dalle righe di acconti utili,
-   intestate al socio. */
-function giaDistribuito(righeCosti) {
-  const acc = {};
-  righeCosti.filter(r => r.tipo === 'utili').forEach(r => {
-    const s = Object.keys(NOME_SOCIO).find(k => SU(r.fornitore).includes(k));
-    if (s) acc[s] = (acc[s] || 0) + r.importo;
-  });
-  return acc;
-}
-
-/* Il conto per socio. Il margine di ogni gruppo si divide secondo le quote;
-   la quota dei costi comuni è invece personale e si sottrae a chi la porta,
-   senza bisogno di dedurre come il lavoro di ciascuno si divide fra i gruppi. */
-function bilancinoSoci() {
-  const rc = costiNelPeriodo(store.costi.filter(r =>
-    societaCosto(r) === stato.societa &&
-    (stato.anno === 'TUTTI' || r.anno === +stato.anno))).righe;
-  const { gruppi } = costiPerGruppo(rc);
-  const perGruppo = Object.fromEntries(gruppi.map(g => [g.gruppo, g]));
-
-  const righeGruppo = Object.keys(SOCI).map(g => {
-    const sez = sezionaleDiGruppo(g);
-    const delGruppo = sez ? TUTTE.filter(r => r.sezionale === sez) : [];
-    const ricavi = somma(delGruppo.filter(r => r.data_incasso &&
-      (stato.anno === 'TUTTI' || +r.data_incasso.slice(0, 4) === +stato.anno) &&
-      nelPeriodo(r.data_incasso)), r => r.imponibile);
-    // Quanto è stato emesso nello stesso periodo ma non è ancora rientrato:
-    // non si distribuisce, ma è giusto vederlo.
-    const daIncassare = somma(delGruppo.filter(r => !r.data_incasso &&
-      (stato.anno === 'TUTTI' || r.anno === +stato.anno) && nelPeriodo(r.data_doc)), r => r.imponibile);
-    const costi = (perGruppo[g] || {}).totale || 0;
-    return { gruppo: g, nome: nomeGruppo(g), sezionale: sez, ricavi, daIncassare, costi, margine: ricavi - costi };
-  }).sort((a, b) => b.margine - a.margine);
-
-  const comuni = {};
-  costiPerPersona(rc).forEach(p => {
-    const s = SIGLA_SOCIO[SU(p.persona)];
-    if (s) comuni[s] = (comuni[s] || 0) + p.importo;
-  });
-  const distrib = giaDistribuito(store.costi.filter(r =>
-    societaCosto(r) === stato.societa && (stato.anno === 'TUTTI' || r.anno === +stato.anno)));
-
-  const soci = Object.keys(NOME_SOCIO).map(s => {
-    const da = righeGruppo.map(rg => {
-      const q = (SOCI[rg.gruppo] || {})[s] || 0;
-      return { nome: rg.nome, quota: q, ricavi: rg.ricavi * q, costi: rg.costi * q,
-               daIncassare: rg.daIncassare * q, parte: rg.margine * q };
-    }).filter(x => x.quota > 0);
-    const ricavi = somma(da, x => x.ricavi);
-    const daIncassare = somma(da, x => x.daIncassare);
-    const costiGruppi = somma(da, x => x.costi);
-    const spettante = somma(da, x => x.parte);
-    const suoiComuni = comuni[s] || 0;
-    const gia = distrib[s] || 0;
-    return { sigla: s, nome: NOME_SOCIO[s], da, ricavi, daIncassare, costiGruppi, spettante, comuni: suoiComuni,
-             netto: spettante - suoiComuni, gia, saldo: spettante - suoiComuni - gia };
-  }).sort((a, b) => b.saldo - a.saldo);
-
-  const nonDivisi = gruppi.filter(g => !SOCI[g.gruppo]);
-  return { righeGruppo, soci, nonDivisi, comuniNonAttribuiti: costiPerGruppo(rc).comuniNonAttribuiti };
-}
-
-function rendiSoci() {
-  const suoi = store.costi.filter(r => societaCosto(r) === stato.societa);
-  if (!suoi.length) {
-    pubblica('soci', `<div class="chart-card"><div class="vuoto">
-      <h3>Servono i costi</h3>
-      <p>Il bilancino incrocia il fatturato con i costi dei gruppi: senza il file dei costi non si può calcolare.</p>
-      </div></div>`);
-    return;
-  }
-  const b = bilancinoSoci();
-  const totSpettante = somma(b.soci, s => s.spettante);
-  const totGia = somma(b.soci, s => s.gia);
-  const totSaldo = somma(b.soci, s => s.saldo);
-
-  let h = '<div class="fascia-grid">';
-  h += fascia('blu', 'euro', 'Risultato da dividere', euro(totSpettante),
-              `su incassato ${esc(etichettaPeriodo())}`);
-  h += fascia('ambra', 'carta', 'Ancora da incassare', euro(somma(b.soci, s => s.daIncassare)),
-              'emesso nel periodo, non rientrato');
-  h += fascia('blu', 'carta', 'Già distribuito', euro(totGia), 'acconti sugli utili ai soci');
-  h += fascia(totSaldo >= 0 ? 'verde' : 'rosa', 'crescita', 'Saldo da regolare', euro(totSaldo),
-              totSaldo >= 0 ? 'ancora da distribuire' : 'distribuito in eccesso');
-  h += '</div>' + SEGNAPOSTO;
-
-  h += `<div class="chart-row">
-    <div class="chart-card"><h3>Saldo per socio</h3><div class="chart-wrap-lg"><canvas id="sSaldo"></canvas></div></div>
-    <div class="chart-card"><h3>Da dove arriva lo spettante</h3><div class="chart-wrap-lg"><canvas id="sOrigine"></canvas></div></div>
-  </div>`;
-
-  // ------------------------------- letture -------------------------------
-  const primo = b.soci[0], ultimo = b.soci[b.soci.length - 1];
-  if (primo && ultimo && primo.sigla !== ultimo.sigla) {
-    box('insight', `${esc(primo.nome)} è a credito di ${euro(primo.saldo)}, ${esc(ultimo.nome)} di ${euro(ultimo.saldo)}.`,
-      `Il conto va letto così: di ogni gruppo il socio prende la sua quota di ricavi <em>e</em> la stessa
-       quota di costi — diretti, personale e comuni attribuiti — e la differenza è il suo margine. Da lì si
-       toglie la sua quota personale dei costi comuni dello studio, poi gli acconti già incassati.
-       Un saldo negativo non è una perdita: vuol dire che gli acconti già presi superano il risultato
-       maturato nel periodo scelto.`);
-  }
-
-  if (b.nonDivisi.length) {
-    box('insight', 'Gruppi che non entrano nella divisione.',
-      `${b.nonDivisi.map(g => `<strong>${esc(nomeGruppo(g.gruppo))}</strong> (${euro(g.totale)} di costi)`).join(', ')}
-       non ${b.nonDivisi.length === 1 ? 'ha' : 'hanno'} quote fra i soci. Studio EC non è un gruppo di lavoro
-       di ST: è una ragione sociale separata, e quei costi ST li anticipa per recuperarli con il riaddebito.`);
-  }
-
-  if (b.comuniNonAttribuiti > 0) {
-    box('warn-box', `${euro(b.comuniNonAttribuiti)} di costi comuni non entrano nei margini per gruppo.`,
-      `Sono le quote dei soci non ancora collegate a un gruppo di lavoro. Nel bilancino vengono comunque
-       sottratte al socio che le porta, quindi il saldo personale è corretto; a essere più generoso del
-       reale è il margine del singolo gruppo.`);
-  }
-
-  const totDaIncassare = somma(b.soci, s => s.daIncassare);
-  if (totDaIncassare > 0) {
-    box('warn-box', `${euro(totDaIncassare)} emessi nel periodo non sono ancora rientrati.`,
-      `Il bilancino divide l'incassato, non il fatturato: quella cifra non entra nel risultato da distribuire
-       e comparirà quando i clienti pagheranno. Chi ha gruppi che incassano più lentamente vede quindi un
-       saldo più basso a parità di lavoro svolto. Una avvertenza sul metodo: i ricavi seguono la data di
-       incasso, i costi quella del documento — si distribuisce la cassa, ma i costi sono quelli maturati.`);
-  }
-
-  const senzaRicavi = b.righeGruppo.filter(g => g.ricavi === 0 && g.costi > 0);
-  if (senzaRicavi.length) {
-    box('warn-box', 'Gruppi con costi ma senza fatturato nel periodo.',
-      `${senzaRicavi.map(g => esc(g.nome)).join(', ')} ${senzaRicavi.length === 1 ? 'non ha' : 'non hanno'}
-       ricavi nella finestra scelta: il margine risulta negativo per intero. Verifica che il fatturato di
-       quel gruppo sia stato emesso nel periodo.`);
-  }
-
-  // -------------------------------- tabelle ------------------------------
-  h += `<div class="chart-card"><h3>Conto per socio</h3>` +
-    tabella([
-      { t: 'Socio', v: s => esc(s.nome) },
-      { t: 'Quote', v: s => s.da.map(x => `${esc(x.nome)} ${pct(x.quota * 100)}`).join(' · ') || '—' },
-      { t: 'Incassato di competenza', num: true, v: s => euro(s.ricavi) },
-      { t: 'Ancora da incassare', num: true, v: s => s.daIncassare ? euro(s.daIncassare) : '—' },
-      { t: 'Costi di competenza', num: true, v: s => s.costiGruppi ? '−' + euro(s.costiGruppi) : '—' },
-      { t: 'Margine', num: true, v: s => `<span class="${s.spettante >= 0 ? 'su' : 'giu'}">${euro(s.spettante)}</span>` },
-      { t: 'Costi comuni suoi', num: true, v: s => s.comuni ? '−' + euro(s.comuni) : '—' },
-      { t: 'Netto', num: true, v: s => euro(s.netto) },
-      { t: 'Già preso', num: true, v: s => s.gia ? '−' + euro(s.gia) : '—' },
-      { t: 'Saldo', num: true, v: s => `<strong class="${s.saldo >= 0 ? 'su' : 'giu'}">${euro(s.saldo)}</strong>` }
-    ], b.soci, { nota: `Periodo ${etichettaPeriodo()}${stato.anno === 'TUTTI' ? '' : ', anno ' + stato.anno}. I ricavi sono quelli <strong>incassati</strong> nel periodo, non quelli emessi: si distribuisce ciò che è entrato. Ricavi e costi sono presi per la quota del socio in ciascun gruppo: chi ha il 20% di un gruppo ne porta il 20% dei costi, non solo dei ricavi.` }) + '</div>';
-
-  h += `<div class="chart-card"><h3>Margine dei gruppi di lavoro</h3>` +
-    tabella([
-      { t: 'Gruppo', v: g => esc(g.nome) },
-      { t: 'Incassato', num: true, v: g => euro(g.ricavi) },
-      { t: 'Da incassare', num: true, v: g => g.daIncassare ? euro(g.daIncassare) : '—' },
-      { t: 'Costi', num: true, v: g => euro(g.costi) },
-      { t: 'Margine', num: true, v: g => `<span class="${g.margine >= 0 ? 'su' : 'giu'}">${euro(g.margine)}</span>` },
-      { t: 'Quote', v: g => Object.entries(SOCI[g.gruppo] || {}).map(([s, q]) => `${esc(NOME_SOCIO[s])} ${pct(q * 100)}`).join(' · ') }
-    ], b.righeGruppo, { nota: 'Incassato per data di incasso; costi per data documento. Le due basi non coincidono, ed è voluto: si distribuisce la cassa, ma i costi sono quelli maturati.' }) + '</div>';
-
-  pubblica('soci', h);
-
-  disegna('sSaldo', { type: 'bar',
-    data: { labels: b.soci.map(s => s.nome), datasets: [{ data: b.soci.map(s => s.saldo),
-      backgroundColor: b.soci.map(s => s.saldo >= 0 ? '#14795e' : '#b04434'), borderRadius: 4 }] },
-    options: { indexAxis: 'y', maintainAspectRatio: false,
-      scales: { x: { ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } },
-                y: { grid: { display: false } } },
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: t => euro(t.parsed.x) } } } } });
-
-  const gruppiUsati = b.righeGruppo.map(g => g.nome);
-  disegna('sOrigine', { type: 'bar',
-    data: { labels: b.soci.map(s => s.nome),
-      datasets: gruppiUsati.map((gn, i) => ({ label: gn,
-        data: b.soci.map(s => (s.da.find(x => x.nome === gn) || {}).parte || 0),
-        backgroundColor: ['#0b4d7c', '#3f7fa8', '#78a8c8', '#b3cadf'][i % 4], borderRadius: 4 })) },
-    options: { maintainAspectRatio: false,
-      scales: { x: { stacked: true, grid: { display: false } },
-                y: { stacked: true, ticks: { callback: v => '€' + fNum.format(v) }, grid: { color: '#eaeef3' } } },
-      plugins: { ...legenda, tooltip: { callbacks: { label: t => `${t.dataset.label}: ${euro(t.parsed.y)}` } } } } });
 }
 
 function rendiArchivio() {
@@ -3502,9 +2262,6 @@ const TAB = [
   ['clienti',    'Clienti',       rendiClienti,    'clienti',    'Analisi',  'Chi paga puntuale e chi va sollecitato'],
   ['attivita',   'Attività',      rendiAttivita,   'torta',      'Analisi',  'Quali prestazioni generano il fatturato'],
   ['confronto',  'Confronto anni',rendiConfronto,  'scambio',    'Analisi',  'Come cambia da un esercizio all\'altro'],
-  ['costi',      'Costi',         rendiCosti,      'documento',  'Costi',    'Spese per gruppo di lavoro e per quota'],
-  ['margini',    'Redditività',   rendiMargini,    'crescita',   'Costi',    'Incrocio fra fatturato e costi dei gruppi'],
-  ['soci',       'Bilancino soci',rendiSoci,       'torta',      'Costi',    'Quanto spetta a ciascun socio e quanto ha già preso'],
   ['archivio',   'Archivio',      rendiArchivio,   'archivio',   'Gestione', 'Caricamento dei file e storico']
 ];
 
@@ -3538,56 +2295,25 @@ function rendiToolbar(root) {
       presenti.map(c => `<button data-v="${c}" aria-pressed="${stato.societa === c}"
         title="${esc(SOCIETA[c].nome)}">${esc(SOCIETA[c].breve)}</button>`).join('') + '</div>';
   }
-  const soloAnno = stato.tab === 'costi' || stato.tab === 'margini';
-  const sezUtili = soloAnno ? sezionaliConCosti() : sezDisp;
-  // Il bilancino guarda tutti i gruppi insieme: un filtro per sezionale
-  // azzererebbe i ricavi di tutti tranne uno.
-  if (sezUtili.length > 1 && stato.tab !== 'soci') {
+  if (sezDisp.length > 1) {
     h += `<span class="filtro-label">Sezionale</span><div class="filtro" data-g="sezionale">
       <button data-v="TUTTI" aria-pressed="${stato.sezionale === 'TUTTI'}">Vista d'insieme</button>` +
-      sezUtili.map(s => `<button data-v="${s}" aria-pressed="${stato.sezionale === s}"
+      sezDisp.map(s => `<button data-v="${s}" aria-pressed="${stato.sezionale === s}"
         title="Sezionale ${esc(s)}">${esc(nomeSez(stato.societa, s))}</button>`).join('') + '</div>';
   }
-  const anniCosti = [...new Set(store.costi.filter(r => societaCosto(r) === stato.societa).map(r => r.anno))].sort((a, b) => b - a);
-  const anniMostrati = soloAnno ? anniCosti : anni;
-  if (anniMostrati.length > 1) {
+  if (anni.length > 1) {
     h += `<span class="filtro-label">Anno</span><div class="filtro" data-g="anno">
       <button data-v="TUTTI" aria-pressed="${stato.anno === 'TUTTI'}">Tutti</button>` +
-      anniMostrati.map(a => `<button data-v="${a}" aria-pressed="${stato.anno === String(a)}">${a}</button>`).join('') + '</div>';
+      anni.map(a => `<button data-v="${a}" aria-pressed="${stato.anno === String(a)}">${a}</button>`).join('') + '</div>';
   }
-
-  const opz = (sel) => MESI_BREVI.map((m, i) =>
-    `<option value="${i + 1}" ${sel === i + 1 ? 'selected' : ''}>${m}</option>`).join('');
-  h += `<span class="filtro-label">Periodo</span>
-    <div class="periodo">
-      <select class="da-mese" aria-label="Dal mese">${opz(stato.daMese)}</select>
-      <span class="periodo-sep">→</span>
-      <select class="a-mese" aria-label="Al mese">${opz(stato.aMese)}</select>
-      ${periodoParziale() ? '<button type="button" class="periodo-reset azzera-periodo">anno intero</button>' : ''}
-    </div>`;
 
   const tb = root && root.querySelector('.filtri');
   if (!tb) return;                 // l'archivio non ha filtri: non è un'analisi
   tb.innerHTML = h;
-  const cambiaMese = () => {
-    let da = +tb.querySelector('.da-mese').value, a = +tb.querySelector('.a-mese').value;
-    if (da > a) a = da;               // una finestra al contrario non vuol dire niente
-    stato.daMese = da; stato.aMese = a;
-    ricalcola(); mostra();
-  };
-  ['.da-mese', '.a-mese'].forEach(sel => {
-    const el = tb.querySelector(sel);
-    if (el) el.addEventListener('change', cambiaMese);
-  });
-  const azz = tb.querySelector('.azzera-periodo');
-  if (azz) azz.addEventListener('click', () => {
-    stato.daMese = 1; stato.aMese = 12; ricalcola(); mostra();
-  });
-
   tb.querySelectorAll('.filtro').forEach(f => f.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     stato[f.dataset.g] = b.dataset.v;
-    if (f.dataset.g === 'societa') { stato.sezionale = 'TUTTI'; stato.anno = 'TUTTI'; stato.daMese = 1; stato.aMese = 12; }
+    if (f.dataset.g === 'societa') { stato.sezionale = 'TUTTI'; stato.anno = 'TUTTI'; }
     ricalcola(); mostra();
   }));
 }
@@ -3645,9 +2371,7 @@ function mostra() {
   $('#tabs').hidden = false;
   $('#cima').hidden = vuoto;
   TAB.forEach(([id]) => $('#sez-' + id).hidden = true);
-  const sezCosti = stato.tab === 'costi' || stato.tab === 'margini' || stato.tab === 'soci';
-  if (vuoto && !(sezCosti && store.costi.length)) { rendiTab(); return; }
-  if (vuoto) { $('#benvenuto').hidden = true; $('#cima').hidden = false; }
+  if (vuoto) { rendiTab(); return; }
 
   const t = TAB.find(x => x[0] === stato.tab) || TAB[0];
   $('#sez-' + t[0]).hidden = false;
@@ -3691,25 +2415,6 @@ async function importa(files, esito, societa) {
   let messaggi = [], errori = [];
   for (const f of files) {
     try {
-      // Un file di suddivisione costi si riconosce dalla forma: non serve
-      // che l'utente lo dichiari, e non ha una ragione sociale da scegliere.
-      if (await eFileCosti(f)) {
-        const ac = await leggiCosti(f);
-        ac.righe.forEach(r => { r.societa = societa; });
-        const { nuove, sostituite } = store.aggiungiCosti(ac);
-        let mc = `<strong>${esc(ac.nomeFile)}</strong> → <strong>costi</strong>: ${num(nuove)} voci`;
-        if (sostituite) mc += `, sostituite ${num(sostituite)} dello stesso anno`;
-        mc += ` · anni ${ac.anni.map(x => x.anno).join(', ')}`;
-        if (ac.scarti.length) mc += ` · ${num(ac.scarti.length)} righe scartate`;
-        messaggi.push(mc);
-        ac.avvisi.forEach(v => messaggi.push(`<span style="color:var(--tenue)">${esc(v)}</span>`));
-        if (ONLINE) {
-          try { await store.sincronizzaCosti(ac); }
-          catch (err) { errori.push(`<strong>${esc(ac.nomeFile)}</strong>: costi letti ma non salvati online (${esc(err.message)}).`); }
-        }
-        continue;
-      }
-
       const a = await leggiFile(f, societa);
 
       /* Se qualche riga non ha il suffisso del sezionale si chiede, invece di
