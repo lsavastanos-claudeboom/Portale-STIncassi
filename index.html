@@ -1939,22 +1939,28 @@ function rendiAttivita() {
 }
 
 function rendiConfronto() {
-  const anni = anniDi(VISTE);
+  // Il filtro anno qui non si applica: la sezione mette a confronto gli anni,
+  // e restringerla a uno solo la farebbe dichiarare vuota. Sezionale e
+  // ragione sociale invece valgono.
+  const BASE = TUTTE.filter(r => stato.sezionale === 'TUTTI' || r.sezionale === stato.sezionale);
+  const anni = anniDi(BASE);
   if (anni.length < 2) {
     $('#sez-confronto').innerHTML = `
-      <div class="chart-card"><div class="vuoto"><p>L'archivio contiene un solo esercizio.
+      <div class="chart-card"><div class="vuoto"><h3>Serve più di un esercizio</h3>
+      <p>${esc(SOCIETA[stato.societa] ? SOCIETA[stato.societa].nome : 'Questa ragione sociale')} ha un solo
+      anno in archivio${stato.sezionale === 'TUTTI' ? '' : ' sul sezionale ' + esc(nomeSez(stato.societa, stato.sezionale))}.
       Carica l'export di un anno precedente per attivare i confronti.</p></div></div>`;
     return;
   }
   const doy = Math.floor((new Date(REF) - new Date(+REF.slice(0, 4), 0, 0)) / 864e5);
   const omogeneo = stato.omogeneo !== false;
-  const sel = omogeneo ? VISTE.filter(r => r.doy <= doy) : VISTE;
+  const sel = omogeneo ? BASE.filter(r => r.doy <= doy) : BASE;
   const dati = anni.map(a => ({ anno: a, ...indicatori(sel.filter(r => r.anno === a)) }));
   const a1 = dati[dati.length - 2], a2 = dati[dati.length - 1];
-  const mov = movimenti(VISTE, a1.anno, a2.anno);
+  const mov = movimenti(BASE, a1.anno, a2.anno);
 
-  const famA = ripartizione(VISTE.filter(r => r.anno === a1.anno), true);
-  const famB = ripartizione(VISTE.filter(r => r.anno === a2.anno), true);
+  const famA = ripartizione(BASE.filter(r => r.anno === a1.anno), true);
+  const famB = ripartizione(BASE.filter(r => r.anno === a2.anno), true);
   const nomi = [...new Set([...famA, ...famB].map(f => f.nome))];
   const mix = nomi.map(n => {
     const x = famA.find(f => f.nome === n), y = famB.find(f => f.nome === n);
@@ -2301,7 +2307,8 @@ function rendiToolbar(root) {
       sezDisp.map(s => `<button data-v="${s}" aria-pressed="${stato.sezionale === s}"
         title="Sezionale ${esc(s)}">${esc(nomeSez(stato.societa, s))}</button>`).join('') + '</div>';
   }
-  if (anni.length > 1) {
+  // Nella sezione che confronta gli anni il filtro anno non si applica.
+  if (anni.length > 1 && stato.tab !== 'confronto') {
     h += `<span class="filtro-label">Anno</span><div class="filtro" data-g="anno">
       <button data-v="TUTTI" aria-pressed="${stato.anno === 'TUTTI'}">Tutti</button>` +
       anni.map(a => `<button data-v="${a}" aria-pressed="${stato.anno === String(a)}">${a}</button>`).join('') + '</div>';
