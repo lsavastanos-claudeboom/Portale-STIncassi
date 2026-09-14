@@ -149,6 +149,51 @@ a { color: var(--blu); }
 .filtro button:hover { color: var(--inchiostro); }
 .filtro button[aria-pressed="true"] { background: var(--blu); color: #fff; font-weight: 600; }
 .filtro-label { font-size: 12.5px; font-weight: 400; color: var(--tenue); }
+/* ------------------------------------------- estratto conto cliente */
+.scheda-overlay { position: fixed; inset: 0; z-index: 150; background: rgba(16,20,24,.55);
+  display: grid; place-items: center; padding: 24px; overflow: auto; }
+.scheda-finestra { background: var(--carta); border-radius: var(--r-xl); width: 100%; max-width: 820px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.28); overflow: hidden; }
+.scheda-barra { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 20px; border-bottom: 1px solid var(--bordo); }
+.scheda-barra > div { display: flex; gap: 8px; }
+.scheda-corpo { padding: 32px 36px; max-height: 74vh; overflow: auto; }
+.scheda { color: var(--inchiostro); font-size: 14px; }
+.sc-testa { display: flex; justify-content: space-between; align-items: flex-start;
+  border-bottom: 2px solid var(--inchiostro); padding-bottom: 12px; margin-bottom: 22px; }
+.sc-studio { font-size: 12.5px; color: var(--tenue); }
+.sc-tit { font-family: var(--display); font-size: 1.3rem; font-weight: 700; }
+.sc-data { font-size: 12.5px; color: var(--tenue); }
+.sc-cliente { font-family: var(--display); font-size: 1.15rem; font-weight: 700; margin-bottom: 14px; }
+.sc-intro { font-size: 13px; line-height: 1.65; color: var(--testo); margin: 0 0 22px; max-width: 68ch; }
+.sc-numeri { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+.sc-numeri > div { border: 1px solid var(--bordo); border-radius: var(--r-md); padding: 12px 14px; }
+.sc-numeri span { display: block; font-family: var(--display); font-size: 1.15rem; font-weight: 700;
+  font-variant-numeric: tabular-nums; }
+.sc-numeri small { display: block; font-size: 11.5px; color: var(--tenue); margin-top: 3px; }
+.sc-sezione { font-family: var(--display); font-weight: 700; font-size: 1rem; margin: 24px 0 10px; }
+.sc-tab { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.sc-tab th { text-align: left; font-weight: 500; color: var(--tenue); padding: 8px 10px;
+  border-bottom: 1px solid var(--bordo-forte); }
+.sc-tab td { padding: 8px 10px; border-bottom: 1px solid var(--bordo); }
+.sc-tab tfoot td { border-top: 2px solid var(--inchiostro); border-bottom: 0; font-weight: 500; }
+.sc-desc { max-width: 240px; }
+.sc-nota { font-size: 12.5px; line-height: 1.6; color: var(--testo); margin: 12px 0 0; }
+.sc-chiusura { font-size: 13px; color: var(--testo); margin-top: 26px; padding-top: 14px;
+  border-top: 1px solid var(--bordo); }
+.sc-rosso { color: var(--rosso); }
+.sc-oltre { color: var(--rosso); }
+.sc-entro { color: var(--tenue); }
+
+@media print {
+  body.in-stampa > *:not(.scheda-overlay) { display: none !important; }
+  body.in-stampa .scheda-overlay { position: static; background: none; padding: 0; display: block; }
+  body.in-stampa .scheda-finestra { max-width: none; box-shadow: none; border-radius: 0; }
+  body.in-stampa .scheda-corpo { max-height: none; overflow: visible; padding: 0; }
+  body.in-stampa .no-print { display: none !important; }
+  .sc-tab { page-break-inside: auto; }
+  .sc-tab tr { page-break-inside: avoid; }
+}
 .spacer { flex: 1; }
 
 .container { padding: 24px 28px 60px; max-width: 1380px; }
@@ -1689,8 +1734,131 @@ function rendiCredito() {
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => euro(c.parsed.y) } } } } });
 }
 
+/* =====================================================================
+   ESTRATTO CONTO PER IL CLIENTE
+   Documento destinato all'invio: niente punteggi, niente giudizi, niente
+   confronti con altri clienti. Espone i fatti — cosa è stato emesso, cosa
+   è stato saldato, cosa resta aperto e da quanto — e dichiara la soglia
+   dei sessanta giorni come riferimento, perché sul proforma non compare.
+   ===================================================================== */
+
+const TOLLERANZA_GG = 60;   // prassi dello studio: entro 60 giorni non si sollecita
+
+/* L'attività è una mappa voce → importo: per il cliente conta la prestazione,
+   non la scomposizione contabile. Si prendono le voci con importo, dalla più
+   pesante, e le altre si riassumono. */
+function oggettoDi(r) {
+  const voci = Object.entries(r.attivita || {}).filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]).map(([k]) => k);
+  if (!voci.length) return '—';
+  if (voci.length <= 2) return voci.join(', ');
+  return `${voci[0]}, ${voci[1]} e altre ${voci.length - 2}`;
+}
+
+function schedaCliente(c) {
+  const aperte = c.righe.filter(r => !r.incassata).sort((a, b) => a.data_doc.localeCompare(b.data_doc));
+  const oltre = aperte.filter(r => r.ggAperti > TOLLERANZA_GG);
+  const entro = aperte.filter(r => r.ggAperti <= TOLLERANZA_GG);
+  const totAperto = somma(aperte, r => r.totale);
+  const totOltre = somma(oltre, r => r.totale);
+  const soc = SOCIETA[stato.societa] || { nome: 'Lo studio' };
+
+  const riga = (r) => `<tr>
+      <td>${esc(r.n_doc)}</td>
+      <td>${dataIt(r.data_doc)}</td>
+      <td class="sc-desc">${esc(oggettoDi(r))}</td>
+      <td class="num">${euro(r.imponibile)}</td>
+      <td class="num">${euro(r.totale)}</td>
+      <td class="num">${num(r.ggAperti)}</td>
+      <td>${r.ggAperti > TOLLERANZA_GG
+            ? '<span class="sc-oltre">oltre i 60 giorni</span>'
+            : '<span class="sc-entro">nei termini</span>'}</td>
+    </tr>`;
+
+  return `
+  <div class="scheda">
+    <div class="sc-testa">
+      <div>
+        <div class="sc-studio">${esc(soc.nome)}</div>
+        <div class="sc-tit">Estratto conto della posizione</div>
+      </div>
+      <div class="sc-data">Situazione al ${dataIt(REF)}</div>
+    </div>
+
+    <div class="sc-cliente">${esc(c.nome)}</div>
+
+    <p class="sc-intro">Di seguito il riepilogo delle proforma emesse e dello stato dei pagamenti.
+      I giorni indicati decorrono dalla data di emissione del documento. Per prassi dello studio
+      non vengono inviati solleciti entro i primi ${TOLLERANZA_GG} giorni.</p>
+
+    <div class="sc-numeri">
+      <div><span>${num(c.documenti)}</span><small>proforma emesse</small></div>
+      <div><span>${euro(c.imponibile)}</span><small>imponibile complessivo</small></div>
+      <div><span>${euro(c.incassato)}</span><small>già saldato</small></div>
+      <div><span class="${totAperto > 0 ? 'sc-rosso' : ''}">${euro(totAperto)}</span><small>da saldare, IVA inclusa</small></div>
+    </div>
+
+    ${c.dso != null ? `<p class="sc-nota">Il tempo medio di pagamento registrato su questa posizione è di
+      <strong>${gg(c.dso)}</strong> dalla data di emissione.</p>` : ''}
+
+    ${aperte.length ? `
+      <div class="sc-sezione">Documenti aperti</div>
+      <table class="sc-tab">
+        <thead><tr><th>N. doc.</th><th>Data</th><th>Oggetto</th>
+          <th class="num">Imponibile</th><th class="num">Totale</th><th class="num">Giorni</th><th>Stato</th></tr></thead>
+        <tbody>${aperte.map(riga).join('')}</tbody>
+        <tfoot><tr><td colspan="4">Totale da saldare</td>
+          <td class="num"><strong>${euro(totAperto)}</strong></td><td colspan="2"></td></tr></tfoot>
+      </table>
+      ${totOltre > 0 ? `<p class="sc-nota sc-rosso">Di questi, <strong>${euro(totOltre)}</strong> su
+        ${num(oltre.length)} document${oltre.length === 1 ? 'o' : 'i'} risultano emessi da oltre
+        ${TOLLERANZA_GG} giorni.</p>` : ''}
+      ${entro.length && totOltre > 0 ? `<p class="sc-nota">I restanti ${num(entro.length)} documenti
+        rientrano nei termini.</p>` : ''}
+    ` : `<p class="sc-nota">Alla data odierna non risultano documenti aperti. La ringraziamo per la puntualità.</p>`}
+
+    <p class="sc-chiusura">Restiamo a disposizione per ogni verifica o chiarimento sulle voci sopra riportate.</p>
+  </div>`;
+}
+
+/* La finestra di anteprima, con il comando di stampa. Il browser produce il
+   PDF: non serve una libreria e il documento resta selezionabile. */
+function apriScheda(chiave) {
+  const c = CLIENTI.find(x => x.key === chiave);
+  if (!c) return;
+  const box = document.createElement('div');
+  box.className = 'scheda-overlay';
+  box.innerHTML = `
+    <div class="scheda-finestra">
+      <div class="scheda-barra no-print">
+        <strong>Estratto conto · ${esc(c.nome)}</strong>
+        <div>
+          <button class="btn ghost" data-az="chiudi">Chiudi</button>
+          <button class="btn" data-az="stampa">Stampa o salva in PDF</button>
+        </div>
+      </div>
+      <div class="scheda-corpo" id="schedaStampa">${schedaCliente(c)}</div>
+    </div>`;
+  document.body.appendChild(box);
+  const via = () => { box.remove(); document.body.classList.remove('in-stampa'); };
+  box.addEventListener('click', e => {
+    if (e.target === box || e.target.dataset.az === 'chiudi') via();
+    if (e.target.dataset.az === 'stampa') {
+      document.body.classList.add('in-stampa');
+      window.print();
+      setTimeout(() => document.body.classList.remove('in-stampa'), 500);
+    }
+  });
+  document.addEventListener('keydown', function esc(e) {
+    if (e.key === 'Escape') { via(); document.removeEventListener('keydown', esc); }
+  });
+}
+
+let CLIENTI = [];
+
 function rendiClienti() {
   const cl = schede(VISTE);
+  CLIENTI = cl;                        // serve alla scheda per ritrovare il cliente
   const tot = somma(cl, c => c.imponibile) || 1;
   let cum = 0;
   const pareto = cl.map((c, i) => { cum += c.imponibile; return { x: i + 1, y: cum / tot * 100 }; });
@@ -1784,6 +1952,7 @@ function rendiClienti() {
       ${th('nome', 'Cliente')}${th('punteggio', 'Giudizio')}<th>Ritmo di pagamento</th>
       ${th('documenti', 'Doc.', 1)}${th('imponibile', 'Imponibile', 1)}${th('dso', 'Tempo medio', 1)}
       <th class="num">Mediana</th>${th('aperto', 'Aperto', 1)}<th class="num">Da giorni</th><th class="num">Ultimo doc.</th>
+      <th></th>
     </tr></thead><tbody>`;
   visibili.slice(0, 250).forEach(c => {
     h += `<tr>
@@ -1796,7 +1965,9 @@ function rendiClienti() {
       <td class="num">${gg(c.mediana)}</td>
       <td class="num">${c.aperto > 0 ? `<span style="color:var(--danger);font-weight:600">${euro(c.aperto)}</span>` : '—'}</td>
       <td class="num">${c.apertoMax == null ? '—' : num(c.apertoMax)}</td>
-      <td class="num">${dataIt(c.ultimo)}</td></tr>`;
+      <td class="num">${dataIt(c.ultimo)}</td>
+      <td><button class="btn ghost estratto" data-k="${esc(c.key)}"
+          style="padding:4px 10px;font-size:.78rem;white-space:nowrap">Estratto conto</button></td></tr>`;
   });
   h += `</tbody></table></div>
     <div class="kpi-sub" style="margin-top:10px">
@@ -1824,6 +1995,8 @@ function rendiClienti() {
     rendiClienti();
   }));
   $('#esportaClienti').addEventListener('click', () => esportaCsv(visibili));
+  $('#sez-clienti').querySelectorAll('.estratto').forEach(b =>
+    b.addEventListener('click', () => apriScheda(b.dataset.k)));
 
   disegna('gRitardi', { type: 'bar',
     data: { labels: ritardo.map(c => c.nome.length > 30 ? c.nome.slice(0, 30) + '…' : c.nome),
