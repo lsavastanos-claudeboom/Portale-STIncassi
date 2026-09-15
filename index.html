@@ -196,6 +196,10 @@ a { color: var(--blu); }
   .sc-tab { page-break-inside: auto; }
   .sc-tab tr { page-break-inside: avoid; }
 }
+.spark { display: block; width: 100%; height: 26px; margin-top: 10px; overflow: visible; }
+.cliente-riga { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.iniz { flex: 0 0 26px; height: 26px; border-radius: 50%; color: #fff; display: grid; place-items: center;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
 .spacer { flex: 1; }
 
 .container { padding: 24px 28px 60px; max-width: 1380px; }
@@ -1116,11 +1120,75 @@ const kpi = (label, valore, sub, tono, delta) =>
      </div></div>`;
 
 /* Fascia piena: solo per i quattro numeri di testa di una sezione. */
-const fascia = (colore, icona, label, valore, sub) =>
+/* Microserie dentro le tessere: il numero dice dove sei, la linea dice come
+   ci sei arrivato. Si disegna in SVG, senza libreria: sono dodici punti. */
+function sparkline(valori, colore, invertito) {
+  const v = valori.filter(x => x !== null && isFinite(x));
+  if (v.length < 3) return '';
+  const min = Math.min(...v), max = Math.max(...v), amp = (max - min) || 1;
+  const w = 100, h = 26;
+  const px = (i) => (i / (valori.length - 1)) * w;
+  const py = (x) => h - 2 - ((x - min) / amp) * (h - 5);
+  const punti = valori.map((x, i) => `${px(i).toFixed(1)},${py(x).toFixed(1)}`).join(' ');
+  const area = `0,${h} ${punti} ${w},${h}`;
+  const ultimo = valori[valori.length - 1], primo = valori.find(x => x !== null);
+  const su = invertito ? ultimo <= primo : ultimo >= primo;
+  const c = colore || (su ? 'var(--verde)' : 'var(--rosso)');
+  const id = 'sk' + Math.random().toString(36).slice(2, 8);
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${c}" stop-opacity=".18"/>
+      <stop offset="1" stop-color="${c}" stop-opacity="0"/></linearGradient></defs>
+    <polygon points="${area}" fill="url(#${id})"/>
+    <polyline points="${punti}" fill="none" stroke="${c}" stroke-width="1.6"
+      stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    <circle cx="${px(valori.length - 1).toFixed(1)}" cy="${py(ultimo).toFixed(1)}" r="1.8" fill="${c}"/>
+  </svg>`;
+}
+
+/* Gli ultimi dodici mesi presenti in archivio, come coppie anno-mese. */
+function ultimiMesi(righe, n = 12) {
+  const set = new Set(righe.map(r => `${r.anno}-${String(r.mese).padStart(2, '0')}`));
+  return [...set].sort().slice(-n);
+}
+
+/* Le quattro serie che stanno dietro alle tessere della panoramica.
+   Il credito aperto si ricostruisce a fine di ogni mese: emesso fino a quel
+   momento, meno quanto era già rientrato. */
+function serieTessere(righe) {
+  const mesi = ultimiMesi(righe);
+  if (mesi.length < 3) return null;
+  const fine = (m) => `${m}-31`;
+  const emesso = [], quota = [], dso = [], aperto = [];
+  mesi.forEach(m => {
+    const delMese = righe.filter(r => `${r.anno}-${String(r.mese).padStart(2, '0')}` === m);
+    emesso.push(somma(delMese, r => r.imponibile));
+    const inc = delMese.filter(r => r.incassata);
+    quota.push(delMese.length ? somma(inc, r => r.imponibile) / (somma(delMese, r => r.imponibile) || 1) * 100 : 0);
+    dso.push(inc.length ? somma(inc, r => r.gg * r.imponibile) / (somma(inc, r => r.imponibile) || 1) : null);
+    const f = fine(m);
+    aperto.push(somma(righe.filter(r => r.data_doc <= f && (!r.incassata || r.data_incasso > f)), r => r.imponibile));
+  });
+  return { emesso, quota, dso, aperto };
+}
+
+/* Iniziali del cliente: su un elenco lungo aiutano a ritrovare una riga. */
+function iniziali(nome) {
+  const parole = String(nome).replace(/\b(S\.?R\.?L\.?|S\.?P\.?A\.?|SNC|SAS|STP|DI|E|&)\b/gi, ' ')
+    .split(/[\s.]+/).filter(Boolean);
+  return (parole.slice(0, 2).map(p => p[0]).join('') || '?').toUpperCase();
+}
+const tintaNome = (nome) => {
+  let n = 0; for (let i = 0; i < nome.length; i++) n = (n * 31 + nome.charCodeAt(i)) >>> 0;
+  return ['#0b4d7c', '#3f7fa8', '#14795e', '#a8741a', '#5d6f84', '#b04434'][n % 6];
+};
+
+const fascia = (colore, icona, label, valore, sub, serie) =>
   `<div class="fascia ${colore}">
      <div class="fascia-valore">${valore}</div>
      <div class="fascia-label">${esc(label)}</div>
-     ${sub ? `<div class="fascia-sub">${sub}</div>` : ''}</div>`;
+     ${sub ? `<div class="fascia-sub">${sub}</div>` : ''}
+     ${serie || ''}</div>`;
 
 const barra = (quota, colore) =>
   `<div class="bar-wrap"><div class="bar-fill" style="width:${Math.max(2, Math.min(100, quota))}%;background:${colore}"></div></div>`;
@@ -1256,14 +1324,22 @@ function rendiPanoramica() {
   const topAperto = cl.filter(c => c.aperto > 0).sort((a, b) => b.aperto - a.aperto)[0];
 
   let h = '<div class="fascia-grid">';
+  // La microserie degli ultimi dodici mesi accanto al numero: dove sei e
+  // come ci sei arrivato. Sul tempo medio e sul credito aperto scendere è
+  // un bene, quindi il colore va letto al contrario.
+  const sr = serieTessere(VISTE);
   h += fascia('blu', 'euro', 'Imponibile emesso', euro(k.imponibile),
-              `${num(k.documenti)} proforma · ${num(k.clienti)} clienti`);
+              `${num(k.documenti)} proforma · ${num(k.clienti)} clienti`,
+              sr && sparkline(sr.emesso));
   h += fascia('verde', 'crescita', 'Quota incassata', pct(k.quotaIncassata),
-              `${euro(k.incassato)} rientrati`);
+              `${euro(k.incassato)} rientrati`,
+              sr && sparkline(sr.quota));
   h += fascia('ambra', 'tempo', 'Tempo medio di incasso', gg(k.dso),
-              `mediana ${dec(k.dsoMediano)} gg`);
+              `mediana ${dec(k.dsoMediano)} gg`,
+              sr && sparkline(sr.dso, null, true));
   h += fascia('rosa', 'carta', 'Credito aperto', euro(k.aperto),
-              `${num(k.documentiAperti)} documenti · ${euro(k.apertoLordo)} lordi`);
+              `${num(k.documentiAperti)} documenti · ${euro(k.apertoLordo)} lordi`,
+              sr && sparkline(sr.aperto, null, true));
   h += '</div><div class="kpi-grid">';
   h += kpi('Scaduto oltre 90 giorni', euro(oltre90), `${num(doc90)} documenti`, oltre90 > 0 ? 'red' : 'green');
   h += kpi('Ticket medio', euro(k.ticket), `mediana ${euro(k.ticketMediano)}`);
@@ -1667,7 +1743,9 @@ function rendiCredito() {
 
   h += `<div class="chart-card" style="margin-top:20px"><h3>Esposizione per cliente</h3>` +
     tabella([
-      { t: 'Cliente', v: c => `<div class="cliente-cell" title="${esc(c.nome)}">${esc(c.nome)}</div>` },
+      { t: 'Cliente', v: c => `<div class="cliente-riga">
+           <span class="iniz" style="background:${tintaNome(c.nome)}">${esc(iniziali(c.nome))}</span>
+           <span class="cliente-cell" title="${esc(c.nome)}">${esc(c.nome)}</span></div>` },
       { t: 'Documenti', num: true, v: c => num(c.doc) },
       { t: 'Imponibile aperto', num: true, v: c => euro(c.imponibile) },
       { t: 'Quota', num: true, v: c => `${pct(c.imponibile / totAperto * 100)} ${barra(c.imponibile / totAperto * 100 * 4, '#b04434')}` },
@@ -1980,7 +2058,9 @@ function rendiClienti() {
     </tr></thead><tbody>`;
   visibili.slice(0, 250).forEach(c => {
     h += `<tr>
-      <td><div class="cliente-cell" title="${esc(c.nome)}">${esc(c.nome)}</div></td>
+      <td><div class="cliente-riga">
+        <span class="iniz" style="background:${tintaNome(c.nome)}">${esc(iniziali(c.nome))}</span>
+        <span class="cliente-cell" title="${esc(c.nome)}">${esc(c.nome)}</span></div></td>
       <td><span class="tag tag-${c.giudizio[2]}">${c.giudizio[1]} · ${c.punteggio}</span></td>
       <td>${ritmo(c.tempi, c.righe.filter(r => !r.incassata).map(r => r.ggAperti))}</td>
       <td class="num">${num(c.documenti)}</td>
