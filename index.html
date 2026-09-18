@@ -290,6 +290,12 @@ a { color: var(--blu); }
 .err-box        { background: #fdeced; border-left: 3px solid var(--rosso); color: #a32530; }
 
 /* ------------------------------------------------------------- tabelle */
+/* Colonna ancorata a destra: con molte colonne il comando resterebbe
+   fuori dal bordo e sembrerebbe tagliato. */
+.col-fissa { position: sticky; right: 0; background: var(--carta); z-index: 2;
+  box-shadow: -10px 0 12px -10px rgba(16,20,24,.22); }
+thead .col-fissa { z-index: 3; }
+tbody tr:hover .col-fissa { background: var(--tinta); }
 .tab-scroll { overflow-x: auto; margin: 0 -22px; padding: 0 22px; -webkit-overflow-scrolling: touch; }
 table { width: 100%; border-collapse: collapse; font-size: .85rem; }
 th {
@@ -583,7 +589,7 @@ const COLORE_ANNO = ['#0b4d7c', '#a8741a', '#0b4d7c', '#5d6f84', '#b04434'];
    dalla lettera del sezionale funzionerebbe solo finché le due anagrafiche
    non usano le stesse. */
 const SOCIETA = {
-  ST: { nome: 'ST Consulting S.r.l. STP', breve: 'ST Consulting' },
+  ST: { nome: 'ST Consulting S.r.l. Società tra professionisti', breve: 'ST Consulting' },
   EC: { nome: 'Studio EC',                breve: 'Studio EC' }
 };
 const CODICI_SOCIETA = Object.keys(SOCIETA);
@@ -2072,7 +2078,7 @@ function rendiClienti() {
       ${th('nome', 'Cliente')}${th('punteggio', 'Giudizio')}<th>Ritmo di pagamento</th>
       ${th('documenti', 'Doc.', 1)}${th('imponibile', 'Imponibile', 1)}${th('dso', 'Tempo medio', 1)}
       <th class="num">Mediana</th>${th('aperto', 'Aperto', 1)}<th class="num">Da giorni</th><th class="num">Ultimo doc.</th>
-      <th></th>
+      <th class="col-fissa"></th>
     </tr></thead><tbody>`;
   visibili.slice(0, 250).forEach(c => {
     h += `<tr>
@@ -2088,8 +2094,8 @@ function rendiClienti() {
       <td class="num">${c.aperto > 0 ? `<span style="color:var(--danger);font-weight:600">${euro(c.aperto)}</span>` : '—'}</td>
       <td class="num">${c.apertoMax == null ? '—' : num(c.apertoMax)}</td>
       <td class="num">${dataIt(c.ultimo)}</td>
-      <td><button class="btn ghost estratto" data-k="${esc(c.key)}"
-          style="padding:4px 10px;font-size:.78rem;white-space:nowrap">Estratto conto</button></td></tr>`;
+      <td class="col-fissa"><button class="btn ghost estratto" data-k="${esc(c.key)}"
+          style="padding:4px 10px;font-size:.78rem;white-space:nowrap">Estratto</button></td></tr>`;
   });
   h += `</tbody></table></div>
     <div class="kpi-sub" style="margin-top:10px">
