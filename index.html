@@ -181,6 +181,11 @@ a { color: var(--blu); }
 .sc-nota { font-size: 12.5px; line-height: 1.6; color: var(--testo); margin: 12px 0 0; }
 .sc-chiusura { font-size: 13px; color: var(--testo); margin-top: 26px; padding-top: 14px;
   border-top: 1px solid var(--bordo); }
+.sc-pagamento { margin-top: 26px; border: 1px solid var(--bordo-forte); border-radius: var(--r-md);
+  padding: 16px 18px; background: var(--tinta); }
+.sc-iban-riga { display: flex; gap: 14px; font-size: 13px; line-height: 1.9; }
+.sc-iban-riga > span { flex: 0 0 96px; color: var(--tenue); }
+.sc-iban { font-variant-numeric: tabular-nums; letter-spacing: .04em; font-size: 14px; }
 .sc-rosso { color: var(--rosso); }
 .sc-oltre { color: var(--rosso); }
 .sc-entro { color: var(--tenue); }
@@ -1841,6 +1846,11 @@ function marchioDi(c) {
   return vinc ? LOGHI[vinc[0]] : null;
 }
 
+/* Coordinate per il pagamento, stampate sull'estratto conto quando c'è
+   qualcosa da saldare. Verificate: cifra di controllo mod-97 e CIN. */
+const IBAN = 'IT56D0326831030052953872190';
+const ibanLeggibile = (v) => v.replace(/(.{4})/g, '$1 ').trim();
+
 const TOLLERANZA_GG = 60;   // prassi dello studio: entro 60 giorni non si sollecita
 
 /* L'attività è una mappa voce → importo: per il cliente conta la prestazione,
@@ -1918,6 +1928,14 @@ function schedaCliente(c) {
       ${entro.length && totOltre > 0 ? `<p class="sc-nota">I restanti ${num(entro.length)} documenti
         rientrano nei termini.</p>` : ''}
     ` : `<p class="sc-nota">Alla data odierna non risultano documenti aperti. La ringraziamo per la puntualità.</p>`}
+
+    ${totAperto > 0 ? `
+      <div class="sc-pagamento">
+        <div class="sc-sezione" style="margin-top:0">Coordinate per il pagamento</div>
+        <div class="sc-iban-riga"><span>Intestato a</span><strong>${esc(soc.nome)}</strong></div>
+        <div class="sc-iban-riga"><span>IBAN</span><strong class="sc-iban">${esc(ibanLeggibile(IBAN))}</strong></div>
+        <div class="sc-iban-riga"><span>Causale</span><strong>numero del documento che si sta saldando</strong></div>
+      </div>` : ''}
 
     <p class="sc-chiusura">Restiamo a disposizione per ogni verifica o chiarimento sulle voci sopra riportate.</p>
   </div>`;
