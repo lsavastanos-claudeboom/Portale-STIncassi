@@ -787,11 +787,38 @@ const store = {
     lotto.set(db.collection('caricamenti').doc(), { ...schedaFile, caricatoDa: utente.email });
     await lotto.commit();
   },
+  /* Proforma che in archivio cadono dentro il periodo e i sezionali coperti
+     dal file, ma che nel file non ci sono più: nel gestionale sono state
+     annullate. Senza questo controllo l'archivio le conserverebbe per sempre
+     e i totali resterebbero più alti di quelli del gestionale. Il periodo si
+     misura blocco per blocco, così un export parziale non tocca il resto. */
+  obsolete(analisi) {
+    const presenti = new Set(analisi.righe.map(ID));
+    const periodi = {};
+    analisi.righe.forEach(r => {
+      const k = BLOCCO(r);
+      const p = (periodi[k] ||= { da: r.data_doc, a: r.data_doc });
+      if (r.data_doc < p.da) p.da = r.data_doc;
+      if (r.data_doc > p.a) p.a = r.data_doc;
+    });
+    return this.righe.filter(r => {
+      const p = periodi[BLOCCO(r)];
+      return p && r.data_doc >= p.da && r.data_doc <= p.a && !presenti.has(ID(r));
+    });
+  },
+
   /* Upsert su (società, sezionale, n. doc, data): ricaricare lo stesso
      periodo aggiorna le date di incasso senza creare doppioni. */
-  aggiungi(analisi) {
-    const idx = new Map(this.righe.map((r, i) => [ID(r), i]));
+  aggiungi(analisi, daRimuovere) {
     const blocchi = new Set();
+    let rimosse = 0;
+    if (daRimuovere && daRimuovere.length) {
+      const fuori = new Set(daRimuovere.map(ID));
+      daRimuovere.forEach(r => blocchi.add(BLOCCO(r)));
+      this.righe = this.righe.filter(r => !fuori.has(ID(r)));
+      rimosse = fuori.size;
+    }
+    const idx = new Map(this.righe.map((r, i) => [ID(r), i]));
     let nuove = 0, aggiornate = 0;
     analisi.righe.forEach(r => {
       blocchi.add(BLOCCO(r));
@@ -805,7 +832,7 @@ const store = {
                         sezionali: analisi.sezionali, periodo: analisi.periodo,
                         caricatoIl: analisi.caricatoIl, scarti: analisi.scarti.length });
     this.salva();
-    return { nuove, aggiornate };
+    return { nuove, aggiornate, rimosse };
   },
   svuota() { this.righe = []; this.file = []; try { localStorage.removeItem(CHIAVE_ARCHIVIO); } catch (e) {} },
   /* Rimuove le righe di un singolo caricamento e riscrive i blocchi toccati. */
@@ -2743,9 +2770,27 @@ async function importa(files, esito, societa) {
          traccia un import sbagliato si può correggere solo svuotando tutto. */
       a.righe.forEach(r => { r.imp = a.caricatoIl; r.impFile = a.nomeFile; });
 
-      const { nuove, aggiornate } = store.aggiungi(a);
+      /* Prima di sommare: chi c'era e non c'è più. Si chiede, non si decide,
+         perché un export ristretto a pochi clienti non è un annullamento. */
+      let daRimuovere = [];
+      const sparite = store.obsolete(a);
+      if (sparite.length) {
+        const totale = sparite.reduce((s, r) => s + (r.imponibile || 0), 0);
+        const elenco = sparite.slice(0, 12)
+          .map(r => `  ${r.n_doc}   ${dataIt(r.data_doc)}   ${euro(r.imponibile)}   ${r.cliente}`).join('\n');
+        const altre = sparite.length > 12 ? `\n  …e altre ${num(sparite.length - 12)}` : '';
+        if (confirm(
+            `${a.nomeFile}\n\n` +
+            `${num(sparite.length)} proforma sono in archivio dentro il periodo coperto da questo file ` +
+            `ma nel file non ci sono più, per ${euro(totale)} di imponibile. ` +
+            `Di solito vuol dire che nel gestionale sono state annullate.\n\n${elenco}${altre}\n\n` +
+            `OK le toglie dall'archivio. Annulla le lascia dove sono.`)) daRimuovere = sparite;
+      }
+
+      const { nuove, aggiornate, rimosse } = store.aggiungi(a, daRimuovere);
       let m = `<strong>${esc(a.nomeFile)}</strong> → ${esc(SOCIETA[societa].nome)}: ${num(nuove)} nuove proforma`;
       if (aggiornate) m += `, ${num(aggiornate)} aggiornate`;
+      if (rimosse) m += `, ${num(rimosse)} annullate tolte`;
       m += ` · periodo ${dataIt(a.periodo.da)} – ${dataIt(a.periodo.a)} · ${a.sezionali.map(x => etichettaSez(a.societa, x)).join(', ')}`;
       if (a.senzaSezionale) m += ` · ${num(a.senzaSezionale)} righe attribuite manualmente`;
       if (a.scarti.length) m += ` · ${num(a.scarti.length)} righe scartate (${esc(a.scarti[0].motivo)})`;
